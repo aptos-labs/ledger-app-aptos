@@ -59,8 +59,8 @@ typedef enum {
  * Structure for public key context information.
  */
 typedef struct {
-    uint8_t raw_public_key[64];  /// x-coordinate (32), y-coodinate (32)
-    uint8_t chain_code[32];      /// for public key derivation
+    uint8_t raw_public_key[32];
+    uint8_t chain_code[32];  /// for public key derivation
 } pubkey_ctx_t;
 
 /**

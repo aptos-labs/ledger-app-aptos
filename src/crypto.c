@@ -32,13 +32,16 @@ int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
     BEGIN_TRY {
         TRY {
             // derive the seed with bip32_path
-            os_perso_derive_node_bip32(CX_CURVE_256K1,
-                                       bip32_path,
-                                       bip32_path_len,
-                                       raw_private_key,
-                                       chain_code);
+            os_perso_derive_node_bip32_seed_key(HDW_ED25519_SLIP10,
+                                                CX_CURVE_Ed25519,
+                                                bip32_path,
+                                                bip32_path_len,
+                                                raw_private_key,
+                                                chain_code,
+                                                (unsigned char *) "ed25519 seed",
+                                                12);
             // new private_key from raw
-            cx_ecfp_init_private_key(CX_CURVE_256K1,
+            cx_ecfp_init_private_key(CX_CURVE_Ed25519,
                                      raw_private_key,
                                      sizeof(raw_private_key),
                                      private_key);
@@ -57,11 +60,16 @@ int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
 
 int crypto_init_public_key(cx_ecfp_private_key_t *private_key,
                            cx_ecfp_public_key_t *public_key,
-                           uint8_t raw_public_key[static 64]) {
+                           uint8_t raw_public_key[static 32]) {
     // generate corresponding public key
-    cx_ecfp_generate_pair(CX_CURVE_256K1, public_key, private_key, 1);
+    cx_ecfp_generate_pair(CX_CURVE_Ed25519, public_key, private_key, 1);
 
-    memmove(raw_public_key, public_key->W + 1, 64);
+    for (int i = 0; i < 32; i++) {
+        raw_public_key[i] = public_key->W[64 - i];
+    }
+    if (public_key->W[32] & 1) {
+        raw_public_key[31] |= 0x80;
+    }
 
     return 0;
 }
