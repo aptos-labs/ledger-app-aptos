@@ -33,6 +33,8 @@
 #include "../ui/display.h"
 #include "../helper/send_response.h"
 
+#include "../common/debug.h"
+
 int handler_get_public_key(buffer_t *cdata, bool display) {
     explicit_bzero(&G_context, sizeof(G_context));
     G_context.req_type = CONFIRM_ADDRESS;
@@ -53,6 +55,12 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
                               G_context.bip32_path_len);
     // generate corresponding public key
     crypto_init_public_key(&private_key, &public_key, G_context.pk_info.raw_public_key);
+
+    debug_hex_print_u32_numbers("Bip32 Path", G_context.bip32_path, G_context.bip32_path_len);
+    debug_hex_print_raw("Private Key", private_key.d, 32);
+    debug_hex_print_raw("Public Key", G_context.pk_info.raw_public_key, 32);
+    debug_hex_print_raw("Chain Code", G_context.pk_info.chain_code, 32);
+
     // reset private key
     explicit_bzero(&private_key, sizeof(private_key));
 
