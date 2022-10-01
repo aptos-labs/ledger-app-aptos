@@ -9,13 +9,28 @@ Be sure to have your environment correctly set up (see [Getting Started](https:/
 If you want to benefit from [vscode](https://code.visualstudio.com/) integration, it's recommended to move the toolchain in `/opt` and set `BOLOS_ENV` environment variable as follows
 
 ```shell
+cd <your-preferred-dir>
+mkdir bolos-devenv
+cd bolos-devenv
+wget https://launchpad.net/gcc-arm-embedded/5.0/5-2016-q1-update/+download/gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
+tar xf gcc-arm-none-eabi-5_3-2016q1-20160330-linux.tar.bz2
+sudo ln -s <your-preferred-dir>/bolos-devenv /opt/bolos-devenv
+```
+
+```shell
 BOLOS_ENV=/opt/bolos-devenv
 ```
 
 and do the same with `BOLOS_SDK` environment variable
 
 ```shell
-BOLOS_SDK=/opt/nanos-secure-sdk
+cd <your-preferred-dir>
+git clone https://github.com/LedgerHQ/nanos-secure-sdk.git nanosplus-secure-sdk
+sudo ln -s <your-preferred-dir>/nanosplus-secure-sdk /opt/nanosplus-secure-sdk
+```
+
+```shell
+BOLOS_SDK=/opt/nanosplus-secure-sdk
 ```
 
 ## Compilation
