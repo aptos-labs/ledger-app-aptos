@@ -3,17 +3,17 @@ from typing import Tuple
 
 from speculos.client import SpeculosClient, ApduException
 
-from boilerplate_client.boilerplate_cmd_builder import BoilerplateCommandBuilder, InsType
-from boilerplate_client.exception import DeviceException
-from boilerplate_client.transaction import Transaction
+from aptos_client.aptos_cmd_builder import AptosCommandBuilder, InsType
+from aptos_client.exception import DeviceException
+from aptos_client.transaction import Transaction
 
 
-class BoilerplateCommand:
+class AptosCommand:
     def __init__(self,
                  client: SpeculosClient,
                  debug: bool = False) -> None:
         self.client = client
-        self.builder = BoilerplateCommandBuilder(debug=debug)
+        self.builder = AptosCommandBuilder(debug=debug)
         self.debug = debug
 
     def get_app_and_version(self) -> Tuple[str, str]:

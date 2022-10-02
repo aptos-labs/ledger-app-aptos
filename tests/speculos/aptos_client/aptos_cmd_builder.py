@@ -3,8 +3,8 @@ import logging
 import struct
 from typing import List, Tuple, Union, Iterator, cast
 
-from boilerplate_client.transaction import Transaction
-from boilerplate_client.utils import bip32_path_from_string
+from aptos_client.transaction import Transaction
+from aptos_client.utils import bip32_path_from_string
 
 MAX_APDU_LEN: int = 255
 
@@ -35,8 +35,8 @@ class InsType(enum.IntEnum):
     INS_SIGN_TX = 0x06
 
 
-class BoilerplateCommandBuilder:
-    """APDU command builder for the Boilerplate application.
+class AptosCommandBuilder:
+    """APDU command builder for the Aptos application.
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ class BoilerplateCommandBuilder:
         Whether you want to see logging or not.
 
     """
-    CLA: int = 0xE0
+    CLA: int = 0x5B
 
     def __init__(self, debug: bool = False):
         """Init constructor."""

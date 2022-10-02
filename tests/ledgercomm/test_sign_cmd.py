@@ -6,7 +6,7 @@ from ecdsa.curves import SECP256k1
 from ecdsa.keys import VerifyingKey
 from ecdsa.util import sigdecode_der
 
-from boilerplate_client.transaction import Transaction
+from aptos_client.transaction import Transaction
 
 @pytest.mark.skip(reason="signing not implemented yet")
 def test_sign_tx(cmd, button, model):
