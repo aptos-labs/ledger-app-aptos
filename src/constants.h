@@ -1,9 +1,9 @@
 #pragma once
 
 /**
- * Instruction class of the Boilerplate application.
+ * Instruction class of the Aptos application.
  */
-#define CLA 0xE0
+#define CLA 0x5B
 
 /**
  * Length of APPNAME variable in the Makefile.
