@@ -12,7 +12,6 @@ them using [pip](https://pypi.org/project/pip/)
 pip install -r tests/ledgercomm/requirements.txt
 ```
 
-
 ## Launch with Speculos
 
 You will need Speculos installed first:
@@ -23,8 +22,7 @@ pip install --extra-index-url https://test.pypi.org/simple/ speculos
 
 The extra index allows to fetch the latest version of Speculos.
 
-
-Then, start the boilerplate application on Speculos:
+Then, start the Aptos application on Speculos:
 
 ```
 speculos bin/app.elf --button-port 42000
@@ -44,7 +42,6 @@ By removing this option, the tests will be stuck, waiting for the someone to
 approve the step. The user could validate this step manually, and the test will
 continue thereafter.
 
-
 ## Launch with your Nano S/X
 
 To run the tests on your Ledger Nano S/X, you also need to install an optional
@@ -54,7 +51,7 @@ dependency:
 pip install ledgercomm[hid]
 ```
 
-Be sure to have the boilerplate application installed (see
+Be sure to have the Aptos application installed (see
 [this page](https://developers.ledger.com/docs/nano-app/load/) for installing an
 application on a Nano S) and opened on the device, and the device connected
 through USB, without any other software interacting with it. Then run:

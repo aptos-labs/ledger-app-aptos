@@ -4,8 +4,8 @@ import pytest
 
 from ledgercomm import Transport
 
-from boilerplate_client.boilerplate_cmd import BoilerplateCommand
-from boilerplate_client.button import ButtonTCP, ButtonFake
+from aptos_client.aptos_cmd import AptosCommand
+from aptos_client.button import ButtonTCP, ButtonFake
 
 
 def pytest_addoption(parser):
@@ -65,7 +65,7 @@ def cmd(hid):
                                        server="127.0.0.1",
                                        port=9999,
                                        debug=True))
-    command = BoilerplateCommand(
+    command = AptosCommand(
         transport=transport,
         debug=True
     )

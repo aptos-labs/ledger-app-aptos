@@ -5,7 +5,7 @@ import pytest
 
 from speculos.client import SpeculosClient
 
-from boilerplate_client.boilerplate_cmd import BoilerplateCommand
+from aptos_client.aptos_cmd import AptosCommand
 
 
 SCRIPT_DIR = Path(__file__).absolute().parent
@@ -14,7 +14,7 @@ API_URL = "http://127.0.0.1:5000"
 
 def pytest_addoption(parser):
     parser.addoption("--model",
-                     action="store", 
+                     action="store",
                      default="nanos")
     parser.addoption("--sdk",
                      action="store",
@@ -53,7 +53,7 @@ def client(model, sdk):
 
 @pytest.fixture
 def cmd(client):
-    yield BoilerplateCommand(
+    yield AptosCommand(
         client=client,
         debug=True
     )
