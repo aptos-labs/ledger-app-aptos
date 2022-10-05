@@ -73,9 +73,13 @@ static void test_tx_serialization(void **state) {
     assert_memory_equal(raw_tx, output, sizeof(raw_tx));
 }
 
+static void test_skip(void **state) {
+    (void) state;
+}
+
 int main() {
     // const struct CMUnitTest tests[] = {cmocka_unit_test(test_tx_serialization)};
-    const struct CMUnitTest tests[] = {}; // SKIP (reason: tx serialization not implemented yet)
+    const struct CMUnitTest tests[] = {cmocka_unit_test(test_skip)}; // SKIP (reason: tx serialization not implemented yet)
 
     return cmocka_run_group_tests(tests, NULL, NULL);
 }
