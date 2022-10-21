@@ -216,3 +216,32 @@ class AptosCommandBuilder:
                                             p1=i + 1,
                                             p2=0x80,
                                             cdata=chunk)
+
+    def sign_raw(self, bip32_path: str, data: bytes) -> Iterator[Tuple[bool, bytes]]:
+        bip32_paths: List[bytes] = bip32_path_from_string(bip32_path)
+
+        cdata: bytes = b"".join([
+            len(bip32_paths).to_bytes(1, byteorder="big"),
+            *bip32_paths
+        ])
+
+        yield False, self.serialize(cla=self.CLA,
+                                    ins=InsType.INS_SIGN_TX,
+                                    p1=0x00,
+                                    p2=0x80,
+                                    cdata=cdata)
+
+        for i, (is_last, chunk) in enumerate(chunkify(data, MAX_APDU_LEN)):
+            if is_last:
+                yield True, self.serialize(cla=self.CLA,
+                                           ins=InsType.INS_SIGN_TX,
+                                           p1=i + 1,
+                                           p2=0x00,
+                                           cdata=chunk)
+                return
+            else:
+                yield False, self.serialize(cla=self.CLA,
+                                            ins=InsType.INS_SIGN_TX,
+                                            p1=i + 1,
+                                            p2=0x80,
+                                            cdata=chunk)
