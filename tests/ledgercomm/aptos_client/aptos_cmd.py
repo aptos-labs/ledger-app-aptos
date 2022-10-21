@@ -141,3 +141,36 @@ class AptosCommand:
         assert len(response) == 1 + der_sig_len + 1
 
         return v, der_sig
+
+    def sign_raw(self, bip32_path: str, data: bytes, button: Button, model: str) -> Tuple[int, bytes]:
+        sw: int
+        response: bytes = b""
+
+        for is_last, chunk in self.builder.sign_raw(bip32_path=bip32_path, data=data):
+            self.transport.send_raw(chunk)
+
+            if is_last:
+                # Review Transaction
+                button.right_click()
+                # Approve
+                button.both_click()
+
+            sw, response = self.transport.recv()  # type: int, bytes
+
+            if sw != 0x9000:
+                raise DeviceException(error_code=sw, ins=InsType.INS_SIGN_TX)
+
+        # response = der_sig_len (1) ||
+        #            der_sig (var) ||
+        #            v (1)
+        offset: int = 0
+        der_sig_len: int = response[offset]
+        offset += 1
+        der_sig: bytes = response[offset:offset + der_sig_len]
+        offset += der_sig_len
+        v: int = response[offset]
+        offset += 1
+
+        assert len(response) == 1 + der_sig_len + 1
+
+        return v, der_sig

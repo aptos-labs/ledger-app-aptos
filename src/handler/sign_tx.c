@@ -76,16 +76,16 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
                             .size = G_context.tx_info.raw_tx_len,
                             .offset = 0};
 
-            parser_status_e status = transaction_deserialize(&buf, &G_context.tx_info.transaction);
-            PRINTF("Parsing status: %d.\n", status);
-            if (status != PARSING_OK) {
-                return io_send_sw(SW_TX_PARSING_FAIL);
-            }
+            // parser_status_e status = transaction_deserialize(&buf,
+            // &G_context.tx_info.transaction); PRINTF("Parsing status: %d.\n", status); if (status
+            // != PARSING_OK) {
+            //     return io_send_sw(SW_TX_PARSING_FAIL);
+            // }
 
             G_context.state = STATE_PARSED;
 
-            cx_sha3_t keccak256;
-            cx_keccak_init(&keccak256, 256);
+            cx_sha512_t keccak256;
+            cx_sha512_init(&keccak256);
             cx_hash((cx_hash_t *) &keccak256,
                     CX_LAST,
                     G_context.tx_info.raw_tx,

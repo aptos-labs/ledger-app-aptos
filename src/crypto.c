@@ -88,11 +88,13 @@ int crypto_sign_message() {
 
     BEGIN_TRY {
         TRY {
-            sig_len = cx_ecdsa_sign(&private_key,
-                                    CX_RND_RFC6979 | CX_LAST,
-                                    CX_SHA256,
-                                    G_context.tx_info.m_hash,
-                                    sizeof(G_context.tx_info.m_hash),
+            sig_len = cx_eddsa_sign(&private_key,
+                                    CX_LAST,
+                                    CX_SHA512,
+                                    G_context.tx_info.raw_tx,
+                                    G_context.tx_info.raw_tx_len,
+                                    NULL,
+                                    0,
                                     G_context.tx_info.signature,
                                     sizeof(G_context.tx_info.signature),
                                     &info);
