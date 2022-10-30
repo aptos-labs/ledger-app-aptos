@@ -16,10 +16,10 @@ def test_sign_raw_tx(cmd, button, model):
 
     pk = VerifyKey(pub_key[1:])
 
-    v, der_sig = cmd.sign_raw(bip32_path=bip32_path,
-                              data=message,
-                              button=button,
-                              model=model)
+    der_sig = cmd.sign_raw(bip32_path=bip32_path,
+                           data=message,
+                           button=button,
+                           model=model)
 
     try:
         pk.verify(signature=der_sig, smessage=message)

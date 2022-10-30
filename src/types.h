@@ -73,7 +73,6 @@ typedef struct {
     uint8_t m_hash[64];                   /// message hash digest
     uint8_t signature[MAX_DER_SIG_LEN];   /// transaction signature encoded in DER
     uint8_t signature_len;                /// length of transaction signature
-    uint8_t v;                            /// parity of y-coordinate of R in ECDSA signature
 } transaction_ctx_t;
 
 /**

@@ -161,16 +161,10 @@ class AptosCommand:
                 raise DeviceException(error_code=sw, ins=InsType.INS_SIGN_TX)
 
         # response = der_sig_len (1) ||
-        #            der_sig (var) ||
-        #            v (1)
-        offset: int = 0
-        der_sig_len: int = response[offset]
-        offset += 1
-        der_sig: bytes = response[offset:offset + der_sig_len]
-        offset += der_sig_len
-        v: int = response[offset]
-        offset += 1
+        #            der_sig (var)
+        der_sig_len: int = response[0]
+        der_sig: bytes = response[1: 1 + der_sig_len]
 
-        assert len(response) == 1 + der_sig_len + 1
+        assert len(response) == 1 + der_sig_len
 
-        return v, der_sig
+        return der_sig
