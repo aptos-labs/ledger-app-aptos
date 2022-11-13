@@ -61,9 +61,9 @@
 
 ### Response
 
-| Response length (bytes) | SW     | RData                                                              |
-| ----------------------- | ------ | ------------------------------------------------------------------ |
-| var                     | 0x9000 | `len(signature) (1)` \|\| <br> `signature (var)` \|\| <br> `v (1)` |
+| Response length (bytes) | SW     | RData                                            |
+| ----------------------- | ------ | ------------------------------------------------ |
+| var                     | 0x9000 | `len(signature) (1)` \|\| <br> `signature (var)` |
 
 ## Status Words
 
