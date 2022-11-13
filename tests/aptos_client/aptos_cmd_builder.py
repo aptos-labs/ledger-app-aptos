@@ -3,7 +3,6 @@ import logging
 import struct
 from typing import List, Tuple, Union, Iterator, cast
 
-from aptos_client.transaction import Transaction
 from aptos_client.utils import bip32_path_from_string
 
 MAX_APDU_LEN: int = 255
@@ -171,15 +170,15 @@ class AptosCommandBuilder:
                               p2=0x00,
                               cdata=cdata)
 
-    def sign_tx(self, bip32_path: str, transaction: Transaction) -> Iterator[Tuple[bool, bytes]]:
+    def sign_raw(self, bip32_path: str, data: bytes) -> Iterator[Tuple[bool, bytes]]:
         """Command builder for INS_SIGN_TX.
 
         Parameters
         ----------
         bip32_path : str
             String representation of BIP32 path.
-        transaction : Transaction
-            Representation of the transaction to be signed.
+        data : bytes
+            Representation of the transaction data to be signed.
 
         Yields
         -------
@@ -187,37 +186,6 @@ class AptosCommandBuilder:
             APDU command chunk for INS_SIGN_TX.
 
         """
-        bip32_paths: List[bytes] = bip32_path_from_string(bip32_path)
-
-        cdata: bytes = b"".join([
-            len(bip32_paths).to_bytes(1, byteorder="big"),
-            *bip32_paths
-        ])
-
-        yield False, self.serialize(cla=self.CLA,
-                                    ins=InsType.INS_SIGN_TX,
-                                    p1=0x00,
-                                    p2=0x80,
-                                    cdata=cdata)
-
-        tx: bytes = transaction.serialize()
-
-        for i, (is_last, chunk) in enumerate(chunkify(tx, MAX_APDU_LEN)):
-            if is_last:
-                yield True, self.serialize(cla=self.CLA,
-                                           ins=InsType.INS_SIGN_TX,
-                                           p1=i + 1,
-                                           p2=0x00,
-                                           cdata=chunk)
-                return
-            else:
-                yield False, self.serialize(cla=self.CLA,
-                                            ins=InsType.INS_SIGN_TX,
-                                            p1=i + 1,
-                                            p2=0x80,
-                                            cdata=chunk)
-
-    def sign_raw(self, bip32_path: str, data: bytes) -> Iterator[Tuple[bool, bytes]]:
         bip32_paths: List[bytes] = bip32_path_from_string(bip32_path)
 
         cdata: bytes = b"".join([
