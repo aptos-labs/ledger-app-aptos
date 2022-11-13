@@ -5,7 +5,7 @@ import pytest
 
 from speculos.client import SpeculosClient
 
-from aptos_client.aptos_cmd import AptosCommand
+from aptos_client.aptos_speculos_cmd import AptosSpeculosCommand
 
 
 SCRIPT_DIR = Path(__file__).absolute().parent
@@ -30,6 +30,7 @@ def model(pytestconfig):
 def sdk(pytestconfig):
     return pytestconfig.getoption("sdk")
 
+
 @pytest.fixture(scope="module")
 def sw_h_path():
     # path with tests
@@ -53,7 +54,7 @@ def client(model, sdk):
 
 @pytest.fixture
 def cmd(client):
-    yield AptosCommand(
+    yield AptosSpeculosCommand(
         client=client,
         debug=True
     )
