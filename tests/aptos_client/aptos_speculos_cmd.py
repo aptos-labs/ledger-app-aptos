@@ -8,7 +8,7 @@ from aptos_client.exception import DeviceException
 from aptos_client.transaction import Transaction
 
 
-class AptosCommand:
+class AptosSpeculosCommand:
     def __init__(self,
                  client: SpeculosClient,
                  debug: bool = False) -> None:
