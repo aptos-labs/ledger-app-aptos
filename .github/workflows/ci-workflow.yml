@@ -71,6 +71,8 @@ jobs:
       image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
 
     steps:
+      - name: Install curl
+        run: apk add curl
       - name: Clone
         uses: actions/checkout@v2
       - name: Build unit tests
