@@ -94,7 +94,7 @@ You can exit the image, with the `exit` command.
 _**NOTE: For more information see the Ledger Dev Docs page:**_
 https://developers.ledger.com/docs/nano-app/build/
 
-## Load the application
+## Load the application (Linux)
 
 _**WARNING: The Nano X does not support side loading, therefore you must use the device emulator `Speculos` for loading to work.**_
 
@@ -122,6 +122,50 @@ While the container image is running:
 
 _**NOTE: For more information see the Ledger Dev Docs page:**_
 https://developers.ledger.com/docs/nano-app/load/
+
+## Load the application (MacOS)
+
+> **Note**
+> Tested on Nano S only
+
+To install the app, we need [virtualenv](https://docs.python.org/3/library/venv.html), this module provides support for creating lightweight “virtual environments” with their own site directories, optionally isolated from system site directories.
+
+### Install virtualenv
+```shell
+$ sudo apt install python3-pip
+$ pip3 install virtualenv
+```
+We will install the app on the hardware wallet Ledger Nano S. Take Ledger Nano S with its cable and plug it into the MacBook.
+
+### Run virtulenv
+Move to the `bin` folder where the compiled sources are located.
+```shell
+$ cd $(realpath .)/bin
+```
+
+And run
+
+```shell
+$ virtualenv -p python3 ledger
+$ source ledger/bin/activate
+$ pip3 install ledgerblue
+```
+
+### Deploy app to Ledger
+Now it's time to deploy the binary file app.hex into the Ledger device.
+
+```shell
+python -m ledgerblue.loadApp --targetId 0x31100004 --apdu --tlv --fileName app.hex --appName Aptos --appFlags 0x00 --icon ""
+```
+
+While the process is running, see the screen of Ledger Nano, you need to do some task.
+
+### Uninstall App
+To uninstall the app, you need to connect the device to the laptop, input the pin and then execute this command.
+
+```shell
+python -m ledgerblue.deleteApp --targetId 0x31100004 --appName "Hello"
+```
 
 ## Speculos emulator
 
