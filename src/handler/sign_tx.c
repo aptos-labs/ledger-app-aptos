@@ -72,15 +72,15 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
 
             G_context.tx_info.raw_tx_len += cdata->size;
 
-            // buffer_t buf = {.ptr = G_context.tx_info.raw_tx,
-            //                 .size = G_context.tx_info.raw_tx_len,
-            //                 .offset = 0};
+            buffer_t buf = {.ptr = G_context.tx_info.raw_tx,
+                            .size = G_context.tx_info.raw_tx_len,
+                            .offset = 0};
 
-            // parser_status_e status = transaction_deserialize(&buf,
-            // &G_context.tx_info.transaction); PRINTF("Parsing status: %d.\n", status); if (status
-            // != PARSING_OK) {
-            //     return io_send_sw(SW_TX_PARSING_FAIL);
-            // }
+            parser_status_e status = transaction_deserialize(&buf, &G_context.tx_info.transaction);
+            PRINTF("Parsing status: %d.\n", status);
+            if (status != PARSING_OK) {
+                return io_send_sw(SW_TX_PARSING_FAIL);
+            }
 
             G_context.state = STATE_PARSED;
 
