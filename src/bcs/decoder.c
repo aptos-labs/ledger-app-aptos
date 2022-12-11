@@ -177,12 +177,12 @@ bool bcs_read_fixed_bytes(buffer_t *buffer, uint8_t *out, size_t size) {
     return buffer_seek_cur(buffer, size);
 }
 
-bool bcs_read_ptr_to_fixed_bytes(buffer_t *buffer, const uint8_t **out, size_t size) {
+bool bcs_read_ptr_to_fixed_bytes(buffer_t *buffer, uint8_t **out, size_t size) {
     if (!buffer_can_read(buffer, size)) {
         return false;
     }
 
-    *out = buffer->ptr + buffer->offset;
+    *out = (uint8_t *) buffer->ptr + buffer->offset;
     return buffer_seek_cur(buffer, size);
 }
 
@@ -213,8 +213,8 @@ bool bcs_read_type_tag_fixed(buffer_t *buffer, type_tag_t *ty_val) {
             return bcs_read_u128(buffer, (uint128_t *) &ty_val->value);
         case TYPE_TAG_ADDRESS:
         case TYPE_TAG_SIGNER:
-            ty_val->size = ADDRESS_SIZE;
-            return bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_val->value, ADDRESS_SIZE);
+            ty_val->size = ADDRESS_LEN;
+            return bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_val->value, ADDRESS_LEN);
         default:
             return false;
     }
@@ -226,8 +226,7 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
     }
     vector_val->value = (type_tag_t *) malloc(sizeof(type_tag_t) * vector_val->size);
     for (size_t i = 0; i < vector_val->size; i++) {
-        if (!bcs_read_u32_from_uleb128(buffer,
-                                       (uint32_t *) (*(type_tag_t *) vector_val->value).type_tag)) {
+        if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) (*(type_tag_t *) vector_val->value).type_tag)) {
             return false;
         }
         if ((*(type_tag_t *) vector_val->value).type_tag < TYPE_TAG_VECTOR) {
@@ -240,8 +239,7 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
             }
         } else if ((*(type_tag_t *) vector_val->value).type_tag == TYPE_TAG_STRUCT) {
             (*(type_tag_t *) vector_val->value).size = sizeof(type_tag_struct_t);
-            (*(type_tag_t *) vector_val->value).value =
-                (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
+            (*(type_tag_t *) vector_val->value).value = (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
             type_tag_struct_init((*(type_tag_t *) vector_val->value).value);
 
             if (!bcs_read_type_tag_struct(buffer, (*(type_tag_t *) vector_val->value).value)) {
@@ -253,16 +251,14 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
 }
 
 bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
-    if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->address, ADDRESS_SIZE)) {
+    if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->address, ADDRESS_LEN)) {
         return false;
     }
     if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->module_name.len)) {
         return false;
     }
     ty_struct->module_name.bytes = (uint8_t *) malloc(sizeof(uint8_t) * ty_struct->module_name.len);
-    if (!bcs_read_fixed_bytes(buffer,
-                              (uint8_t *) &ty_struct->module_name.bytes,
-                              ty_struct->module_name.len)) {
+    if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->module_name.bytes, ty_struct->module_name.len)) {
         return false;
     }
     if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->name.len)) {
@@ -276,20 +272,17 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
         return false;
     }
     if (ty_struct->type_args_size > 0) {
-        ty_struct->type_args =
-            (type_tag_t *) malloc(sizeof(type_tag_t) * ty_struct->type_args_size);
+        ty_struct->type_args = (type_tag_t *) malloc(sizeof(type_tag_t) * ty_struct->type_args_size);
         for (size_t i = 0; i < ty_struct->type_args_size; i++) {
             ty_struct->type_args[i].type_tag = 0;
             ty_struct->type_args[i].size = 0;
             ty_struct->type_args[i].value = NULL;
 
-            if (!bcs_read_u32_from_uleb128(buffer,
-                                           (uint32_t *) &ty_struct->type_args[i].type_tag)) {
+            if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->type_args[i].type_tag)) {
                 return false;
             }
             if (ty_struct->type_args[i].type_tag < TYPE_TAG_VECTOR) {
-                if (!bcs_read_type_tag_fixed(buffer,
-                                             (type_tag_t *) &ty_struct->type_args[i].value)) {
+                if (!bcs_read_type_tag_fixed(buffer, (type_tag_t *) &ty_struct->type_args[i].value)) {
                     return false;
                 }
             } else if (ty_struct->type_args[i].type_tag == TYPE_TAG_VECTOR) {
@@ -298,8 +291,7 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
                 }
             } else if (ty_struct->type_args[i].type_tag == TYPE_TAG_STRUCT) {
                 ty_struct->type_args[i].size = sizeof(type_tag_struct_t);
-                ty_struct->type_args[i].value =
-                    (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
+                ty_struct->type_args[i].value = (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
                 type_tag_struct_init(ty_struct->type_args[i].value);
 
                 if (!bcs_read_type_tag_struct(buffer, ty_struct->type_args[i].value)) {

@@ -9,7 +9,7 @@ void type_tag_init(type_tag_t *type_tag) {
 }
 
 void type_tag_struct_init(type_tag_struct_t *type_tag_struct) {
-    memset(&type_tag_struct->address, 0, ADDRESS_SIZE);
+    memset(&type_tag_struct->address, 0, ADDRESS_LEN);
     fixed_bytes_init(&type_tag_struct->module_name);
     fixed_bytes_init(&type_tag_struct->name);
     type_tag_struct->type_args_size = 0;
@@ -22,17 +22,16 @@ void fixed_bytes_init(fixed_bytes_t *fixed_bytes) {
 }
 
 void module_id_init(module_id_t *module_id) {
-    memset(module_id->address, 0, ADDRESS_SIZE);
+    memset(module_id->address, 0, ADDRESS_LEN);
     fixed_bytes_init(&module_id->name);
 }
 
 void entry_function_payload_init(entry_function_payload_t *payload) {
     module_id_init(&payload->module_id);
     fixed_bytes_init(&payload->function_name);
-    payload->ty_size = 0;
-    payload->ty_args = NULL;
-    payload->args_size = 0;
-    payload->args = NULL;
+    payload->known_type = FUNC_UNKNOWN;
+    payload->args.ty_size = 0;
+    payload->args.args_size = 0;
 }
 
 void script_payload_init(script_payload_t *payload) {
@@ -43,10 +42,10 @@ void script_payload_init(script_payload_t *payload) {
     payload->args = NULL;
 }
 
-void transaction_init(transaction_t *tx) {
-    memset(tx->sender, 0, ADDRESS_SIZE);
+void transaction_init(aptos_transaction_t *tx) {
+    memset(tx->sender, 0, ADDRESS_LEN);
     tx->sequence = 0;
-    tx->payload = NULL;
+    tx->payload_variant = PAYLOAD_UNDEFINDED;
     tx->max_gas_amount = 0;
     tx->gas_unit_price = 0;
     tx->expiration_timestamp_secs = 0;
