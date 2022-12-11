@@ -14,4 +14,4 @@ void entry_function_payload_init(entry_function_payload_t *payload);
 
 void script_payload_init(script_payload_t *payload);
 
-void transaction_init(transaction_t *tx);
+void transaction_init(aptos_transaction_t *tx);

@@ -28,7 +28,7 @@ bool bcs_read_char(buffer_t *buffer, uint8_t *out);
 bool bcs_read_bytes(buffer_t *buffer, uint8_t *out, size_t out_len);
 bool bcs_read_string(buffer_t *buffer, unsigned char *out, size_t out_size, size_t *out_len);
 bool bcs_read_fixed_bytes(buffer_t *buffer, uint8_t *out, size_t size);
-bool bcs_read_ptr_to_fixed_bytes(buffer_t *buffer, const uint8_t **out, size_t size);
+bool bcs_read_ptr_to_fixed_bytes(buffer_t *buffer, uint8_t **out, size_t size);
 bool bcs_read_dynamic_bytes(buffer_t *buffer, uint8_t *out, size_t out_size, size_t *out_len);
 
 bool bcs_read_type_tag_fixed(buffer_t *buffer, type_tag_t *ty_val);
