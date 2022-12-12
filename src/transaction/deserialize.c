@@ -12,10 +12,21 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
     }
     transaction_init(tx);
 
+    uint8_t *prefix;
     // skip hashed prefix bytes
-    if (!buffer_seek_cur(buf, TX_HASHED_PREFIX_LEN)) {
+    if (!bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
         return -1;
     }
+
+    if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+        tx->tx_variant = TX_RAW_WITH_DATA;
+        return PARSING_OK;
+    }
+
+    if (memcmp(prefix, PREFIX_RAW_TX_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+        tx->tx_variant = TX_RAW;
+    }
+
     // read sender address
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) &tx->sender, ADDRESS_LEN)) {
         return -2;

@@ -123,6 +123,13 @@ UX_STEP_NOCB(ux_display_review_step,
                  "Review",
                  "Transaction",
              });
+// Step with title/text for transaction type
+UX_STEP_NOCB(ux_display_tx_type_step,
+             bnnn_paging,
+             {
+                 .title = "Tx Type",
+                 .text = g_struct,
+             });
 // Step with title/text for function
 UX_STEP_NOCB(ux_display_function_step,
              bnnn_paging,
@@ -166,6 +173,7 @@ UX_STEP_NOCB(ux_display_gas_fee_step,
 // #4 screen : reject button
 UX_FLOW(ux_display_tx_default_flow,
         &ux_display_review_step,
+        &ux_display_tx_type_step,
         &ux_display_gas_fee_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
@@ -238,14 +246,25 @@ int ui_display_transaction() {
     snprintf(g_gas_fee, sizeof(g_gas_fee), "APT %.*s", sizeof(gas_fee), gas_fee);
     PRINTF("Gas Fee: %s\n", g_gas_fee);
 
-    switch (transaction->payload_variant) {
-        case PAYLOAD_ENTRY_FUNCTION:
-            return ui_display_entry_function();
-        case PAYLOAD_SCRIPT:
-        default:
-            ux_flow_init(0, ux_display_tx_default_flow, NULL);
-            break;
+    if (transaction->tx_variant == TX_RAW) {
+        switch (transaction->payload_variant) {
+            case PAYLOAD_ENTRY_FUNCTION:
+                return ui_display_entry_function();
+            case PAYLOAD_SCRIPT:
+                memset(g_struct, 0, sizeof(g_struct));
+                snprintf(g_struct, sizeof(g_struct), "%s [payload = SCRIPT]", RAW_TRANSACTION_SALT);
+                break;
+            default:
+                memset(g_struct, 0, sizeof(g_struct));
+                snprintf(g_struct, sizeof(g_struct), "%s [payload = UNKNOWN]", RAW_TRANSACTION_SALT);
+                break;
+        }
+    } else {
+        memset(g_struct, 0, sizeof(g_struct));
+        snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
     }
+
+    ux_flow_init(0, ux_display_tx_default_flow, NULL);
 
     return 0;
 }
@@ -319,11 +338,9 @@ int ui_display_tx_coin_transfer() {
     PRINTF("Receiver: %s\n", g_address);
 
     memset(g_amount, 0, sizeof(g_amount));
-    char amount[30] = {0};
-    if (!format_fpu64(amount, sizeof(amount), transfer->amount, 8)) {
+    if (!format_fpu64(g_amount, sizeof(g_amount), transfer->amount, 8)) {
         return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
     }
-    snprintf(g_amount, sizeof(g_amount), "APT %.*s", sizeof(amount), amount);
     PRINTF("Amount: %s\n", g_amount);
 
     ux_flow_init(0, ux_display_tx_coin_transfer_flow, NULL);
