@@ -19,11 +19,12 @@
 #define TX_HASHED_PREFIX_LEN           32
 #define TX_FOOTER_LEN                  25
 // sha3-256 hash of the RAW_TRANSACTION_SALT
-static const uint8_t RawTxHashedPrefix[] = {181, 233, 125, 176, 127, 160, 189, 14,  85,  152, 170, 54, 67,  169, 188, 111,
-                                            102, 147, 189, 220, 26,  159, 236, 158, 103, 74,  70,  30, 170, 0,   177, 147};
+static const uint8_t PREFIX_RAW_TX_HASHED[] = {181, 233, 125, 176, 127, 160, 189, 14,  85,  152, 170, 54, 67,  169, 188, 111,
+                                               102, 147, 189, 220, 26,  159, 236, 158, 103, 74,  70,  30, 170, 0,   177, 147};
 // sha3-256 hash of the RAW_TRANSACTION_WITH_DATA_SALT
-static const uint8_t RawTxWithDataHashedPrefix[] = {94, 250, 60, 79,  2,   248, 58, 15,  75,  45,  105, 252, 149, 198, 7,   204,
-                                                    2,  130, 92, 196, 231, 190, 83, 110, 240, 153, 45,  240, 80,  217, 230, 124};
+static const uint8_t PREFIX_RAW_TX_WITH_DATA_HASHED[] = {94,  250, 60,  79,  2,   248, 58,  15,  75,  45,  105,
+                                                         252, 149, 198, 7,   204, 2,   130, 92,  196, 231, 190,
+                                                         83,  110, 240, 153, 45,  240, 80,  217, 230, 124};
 
 typedef struct {
     uint64_t high;
@@ -112,9 +113,12 @@ typedef struct {
     fixed_bytes_t *args;
 } script_payload_t;
 
+typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_UNDEFINDED = 1000 } tx_variant_t;
+
 typedef enum { PAYLOAD_SCRIPT = 0, PAYLOAD_ENTRY_FUNCTION = 2, PAYLOAD_UNDEFINDED = 1000 } payload_variant_t;
 
 typedef struct {
+    tx_variant_t tx_variant;
     uint8_t sender[ADDRESS_LEN];
     uint64_t sequence;
     payload_variant_t payload_variant;

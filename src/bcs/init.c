@@ -44,6 +44,7 @@ void script_payload_init(script_payload_t *payload) {
 
 void transaction_init(aptos_transaction_t *tx) {
     memset(tx->sender, 0, ADDRESS_LEN);
+    tx->tx_variant = TX_UNDEFINDED;
     tx->sequence = 0;
     tx->payload_variant = PAYLOAD_UNDEFINDED;
     tx->max_gas_amount = 0;
