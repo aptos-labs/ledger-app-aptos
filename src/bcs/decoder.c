@@ -90,11 +90,15 @@ bool bcs_read_i128(buffer_t *buffer, int128_t *value) {
 }
 
 bool bcs_read_f32(buffer_t *buffer, float *value) {
+    (void) buffer;
+    (void) value;
     // Not implemented
     return false;
 }
 
 bool bcs_read_f64(buffer_t *buffer, double *value) {
+    (void) buffer;
+    (void) value;
     // Not implemented
     return false;
 }
@@ -145,6 +149,8 @@ bool bcs_read_length(buffer_t *buffer, size_t *out_len) {
 }
 
 bool bcs_read_char(buffer_t *buffer, uint8_t *out) {
+    (void) buffer;
+    (void) out;
     // Not implemented
     return false;
 }
@@ -220,6 +226,7 @@ bool bcs_read_type_tag_fixed(buffer_t *buffer, type_tag_t *ty_val) {
     }
 }
 
+/* TODO: optimize memory handling before use
 bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
     if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) vector_val->size)) {
         return false;
@@ -249,7 +256,9 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
     }
     return true;
 }
+*/
 
+/* TODO: optimize memory handling before use
 bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
     if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->address, ADDRESS_LEN)) {
         return false;
@@ -304,3 +313,4 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
     }
     return true;
 }
+*/

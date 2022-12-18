@@ -7,7 +7,6 @@
 
 #include <cmocka.h>
 
-#include "transaction/serialize.h"
 #include "transaction/deserialize.h"
 #include "transaction/types.h"
 

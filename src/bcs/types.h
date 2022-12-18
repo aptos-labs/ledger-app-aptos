@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-// TODO: move to "../transaction/types.h"
 // Maximum length allowed for sequence (vectors, bytes, strings) and maps
 #define MAX_SEQUENCE_LENGTH ((1ull << 31) - 1)
 // Maximum number of nested structs and enum variants
@@ -16,8 +15,10 @@
 #define RAW_TRANSACTION_SALT "APTOS::RawTransaction"
 // prefix for MultiAgentRawTransaction
 #define RAW_TRANSACTION_WITH_DATA_SALT "APTOS::RawTransactionWithData"
-#define TX_HASHED_PREFIX_LEN           32
-#define TX_FOOTER_LEN                  25
+// size of hashed prefix
+#define TX_HASHED_PREFIX_LEN 32
+// size in bytes of data (max_gas_amount + gas_unit_price + expiration_timestamp_secs + chain_id) at the end of the transaction
+#define TX_FOOTER_LEN 25
 // sha3-256 hash of the RAW_TRANSACTION_SALT
 static const uint8_t PREFIX_RAW_TX_HASHED[] = {181, 233, 125, 176, 127, 160, 189, 14,  85,  152, 170, 54, 67,  169, 188, 111,
                                                102, 147, 189, 220, 26,  159, 236, 158, 103, 74,  70,  30, 170, 0,   177, 147};
