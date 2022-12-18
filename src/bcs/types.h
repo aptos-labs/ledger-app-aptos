@@ -51,7 +51,7 @@ typedef enum {
     TYPE_TAG_SIGNER = 5,
     TYPE_TAG_VECTOR = 6,
     TYPE_TAG_STRUCT = 7,
-    TYPE_TAG_UNDEFINDED = 1000
+    TYPE_TAG_UNDEFINED = 1000
 } type_tag_variant_t;
 
 typedef struct {
@@ -114,9 +114,9 @@ typedef struct {
     fixed_bytes_t *args;
 } script_payload_t;
 
-typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_UNDEFINDED = 1000 } tx_variant_t;
+typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_UNDEFINED = 1000 } tx_variant_t;
 
-typedef enum { PAYLOAD_SCRIPT = 0, PAYLOAD_ENTRY_FUNCTION = 2, PAYLOAD_UNDEFINDED = 1000 } payload_variant_t;
+typedef enum { PAYLOAD_SCRIPT = 0, PAYLOAD_ENTRY_FUNCTION = 2, PAYLOAD_UNDEFINED = 1000 } payload_variant_t;
 
 typedef struct {
     tx_variant_t tx_variant;
