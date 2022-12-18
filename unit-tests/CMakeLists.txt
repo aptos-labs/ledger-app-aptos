@@ -57,7 +57,6 @@ add_library(format SHARED ../src/common/format.c)
 add_library(varint SHARED ../src/common/varint.c)
 add_library(apdu_parser SHARED ../src/apdu/parser.c)
 add_library(transaction_deserialize ../src/transaction/deserialize.c)
-add_library(transaction_serialize ../src/transaction/serialize.c)
 add_library(transaction_utils ../src/transaction/utils.c)
 
 target_link_libraries(test_bcs PUBLIC cmocka gcov bcs buffer bip32 varint write read)
@@ -69,7 +68,6 @@ target_link_libraries(test_write PUBLIC cmocka gcov write)
 target_link_libraries(test_apdu_parser PUBLIC cmocka gcov apdu_parser)
 target_link_libraries(test_tx_parser PUBLIC
                       transaction_deserialize
-                      transaction_serialize
                       bcs
                       buffer
                       bip32
