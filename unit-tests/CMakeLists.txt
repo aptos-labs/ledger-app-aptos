@@ -37,6 +37,7 @@ add_compile_definitions(TEST)
 
 include_directories(../src)
 
+add_executable(test_bcs test_bcs.c)
 add_executable(test_base58 test_base58.c)
 add_executable(test_bip32 test_bip32.c)
 add_executable(test_buffer test_buffer.c)
@@ -46,6 +47,7 @@ add_executable(test_apdu_parser test_apdu_parser.c)
 add_executable(test_tx_parser test_tx_parser.c)
 add_executable(test_tx_utils test_tx_utils.c)
 
+add_library(bcs SHARED ../src/bcs/init.c ../src/bcs/decoder.c ../src/bcs/utf8.c)
 add_library(base58 SHARED ../src/common/base58.c)
 add_library(bip32 SHARED ../src/common/bip32.c)
 add_library(buffer SHARED ../src/common/buffer.c)
@@ -58,6 +60,7 @@ add_library(transaction_deserialize ../src/transaction/deserialize.c)
 add_library(transaction_serialize ../src/transaction/serialize.c)
 add_library(transaction_utils ../src/transaction/utils.c)
 
+target_link_libraries(test_bcs PUBLIC cmocka gcov bcs buffer bip32 varint write read)
 target_link_libraries(test_base58 PUBLIC cmocka gcov base58)
 target_link_libraries(test_bip32 PUBLIC cmocka gcov bip32 read)
 target_link_libraries(test_buffer PUBLIC cmocka gcov buffer bip32 varint write read)
@@ -67,19 +70,21 @@ target_link_libraries(test_apdu_parser PUBLIC cmocka gcov apdu_parser)
 target_link_libraries(test_tx_parser PUBLIC
                       transaction_deserialize
                       transaction_serialize
+                      bcs
                       buffer
                       bip32
                       cmocka
                       gcov
+                      varint
                       write
                       read
-                      varint
                       transaction_utils)
 target_link_libraries(test_tx_utils PUBLIC
                       cmocka
                       gcov
                       transaction_utils)
 
+add_test(test_bcs test_bcs)
 add_test(test_base58 test_base58)
 add_test(test_bip32 test_bip32)
 add_test(test_buffer test_buffer)

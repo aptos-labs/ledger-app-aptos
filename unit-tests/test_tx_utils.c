@@ -18,17 +18,6 @@ static void test_tx_utils(void **state) {
 
     assert_true(transaction_utils_check_encoding(good_ascii, sizeof(good_ascii)));
     assert_false(transaction_utils_check_encoding(bad_ascii, sizeof(bad_ascii)));
-
-    char output[MAX_MEMO_LEN] = {0};
-    assert_true(transaction_utils_format_memo(good_ascii,          //
-                                              sizeof(good_ascii),  //
-                                              output,              //
-                                              sizeof(output)));
-    assert_string_equal(output, "Hello!");
-    assert_false(transaction_utils_format_memo(good_ascii,            //
-                                               sizeof(good_ascii),    //
-                                               output,                //
-                                               sizeof(good_ascii)));  // dst_len too small
 }
 
 int main() {
