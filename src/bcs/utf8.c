@@ -4,7 +4,7 @@
 
 #include "utf8.h"
 
-bool try_push_char(uint8_t *out, int *out_len, uint8_t ch, size_t max_len) {
+bool try_push_char(uint8_t *out, size_t *out_len, uint8_t ch, size_t max_len) {
     if (*out_len < max_len) {
         out[(*out_len)++] = ch;
         return true;
@@ -22,7 +22,7 @@ int try_utf8_to_ascii(const uint8_t *in, size_t in_len, uint8_t *out, size_t max
     }
     const uint8_t unknown_char = '?';
     bool is_utf8 = false;
-    int out_len = 0;
+    size_t out_len = 0;
     size_t i = 0;
     while (i < in_len) {
         if (in[i] < 0x80) {
@@ -80,5 +80,5 @@ int try_utf8_to_ascii(const uint8_t *in, size_t in_len, uint8_t *out, size_t max
     if (out_is_utf8) {
         *out_is_utf8 = is_utf8;
     }
-    return out_len;
+    return (int) out_len;
 }

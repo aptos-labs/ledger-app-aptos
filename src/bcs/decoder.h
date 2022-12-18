@@ -32,5 +32,8 @@ bool bcs_read_ptr_to_fixed_bytes(buffer_t *buffer, uint8_t **out, size_t size);
 bool bcs_read_dynamic_bytes(buffer_t *buffer, uint8_t *out, size_t out_size, size_t *out_len);
 
 bool bcs_read_type_tag_fixed(buffer_t *buffer, type_tag_t *ty_val);
-bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val);
-bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct);
+
+// TODO: optimize memory handling before use
+// bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val);
+// TODO: optimize memory handling before use
+// bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct);
