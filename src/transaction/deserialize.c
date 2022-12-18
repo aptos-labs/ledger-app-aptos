@@ -13,9 +13,9 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
     transaction_init(tx);
 
     uint8_t *prefix;
-    // skip hashed prefix bytes
+    // read hashed prefix bytes
     if (!bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
-        return -1;
+        return HASHED_PREFIX_READ_ERROR;
     }
 
     if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
@@ -29,39 +29,39 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
 
     // read sender address
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) &tx->sender, ADDRESS_LEN)) {
-        return -2;
+        return SENDER_READ_ERROR;
     }
     // read sequence
     if (!bcs_read_u64(buf, &tx->sequence)) {
-        return -3;
+        return SEQUENCE_READ_ERROR;
     }
 
     const size_t buf_footer_begin = buf->size - TX_FOOTER_LEN;
     buffer_t buf_footer = {.ptr = buf->ptr, .size = buf->size, .offset = buf_footer_begin};
     // read max_gas_amount
     if (!bcs_read_u64(&buf_footer, &tx->max_gas_amount)) {
-        return -4;
+        return MAX_GAS_READ_ERROR;
     }
     // read gas_unit_price
     if (!bcs_read_u64(&buf_footer, &tx->gas_unit_price)) {
-        return -5;
+        return GAS_UNIT_PRICE_READ_ERROR;
     }
     // read expiration_timestamp_secs
     if (!bcs_read_u64(&buf_footer, &tx->expiration_timestamp_secs)) {
-        return -6;
+        return EXPIRATION_READ_ERROR;
     }
     // read chain_id
     if (!bcs_read_u8(&buf_footer, &tx->chain_id)) {
-        return -7;
+        return CHAIN_ID_READ_ERROR;
     }
 
     // read payload_variant
-    uint32_t payload_variant = PAYLOAD_UNDEFINDED;
+    uint32_t payload_variant = PAYLOAD_UNDEFINED;
     if (!bcs_read_u32_from_uleb128(buf, &payload_variant)) {
-        return -8;
+        return PAYLOAD_VARIANT_READ_ERROR;
     }
     if (payload_variant != PAYLOAD_ENTRY_FUNCTION && payload_variant != PAYLOAD_SCRIPT) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
     tx->payload_variant = payload_variant;
 
@@ -77,9 +77,10 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
             }
             return PARSING_OK;
         case PAYLOAD_SCRIPT:
+            // TODO: implement script fields parsing
             return PARSING_OK;
         default:
-            return -9;
+            return PAYLOAD_UNDEFINED_ERROR;
     }
 
     return PARSING_OK;
@@ -87,30 +88,30 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
 
 parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t *tx) {
     if (tx->payload_variant != PAYLOAD_ENTRY_FUNCTION) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
     entry_function_payload_t *payload = &tx->payload.entry_function;
     entry_function_payload_init(payload);
 
     // read module id address field
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) payload->module_id.address, sizeof payload->module_id.address)) {
-        return -10;
+        return MODULE_ID_ADDR_READ_ERROR;
     }
     // read module_id name len field
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->module_id.name.len)) {
-        return -11;
+        return MODULE_ID_NAME_LEN_READ_ERROR;
     }
     //  read module_id name bytes field
     if (!bcs_read_ptr_to_fixed_bytes(buf, &payload->module_id.name.bytes, payload->module_id.name.len)) {
-        return -12;
+        return MODULE_ID_NAME_BYTES_READ_ERROR;
     }
     // read function_name len field
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->function_name.len)) {
-        return -13;
+        return FUNCTION_NAME_LEN_READ_ERROR;
     }
     // read function_name bytes field
     if (!bcs_read_ptr_to_fixed_bytes(buf, &payload->function_name.bytes, payload->function_name.len)) {
-        return -14;
+        return FUNCTION_NAME_BYTES_READ_ERROR;
     }
 
     payload->known_type = determine_function_type(tx);
@@ -128,44 +129,50 @@ parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t 
 
 parser_status_e aptos_account_transfer_function_deserialize(buffer_t *buf, transaction_t *tx) {
     if (tx->payload_variant != PAYLOAD_ENTRY_FUNCTION) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
     entry_function_payload_t *payload = &tx->payload.entry_function;
     if (payload->known_type != FUNC_APTOS_ACCOUNT_TRANSFER) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
 
+    // read type args size
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->args.ty_size)) {
-        return -15;
+        return TYPE_ARGS_SIZE_READ_ERROR;
     }
     if (payload->args.ty_size != 0) {
-        return -16;
+        return TYPE_ARGS_SIZE_UNEXPECTED_ERROR;
     }
+    // read args size
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->args.args_size)) {
-        return -17;
+        return ARGS_SIZE_READ_ERROR;
     }
     if (payload->args.args_size != 2) {
-        return -18;
+        return ARGS_SIZE_UNEXPECTED_ERROR;
     }
     uint32_t receiver_len;
+    // read receiver address len
     if (!bcs_read_u32_from_uleb128(buf, &receiver_len)) {
-        return -19;
+        return RECEIVER_ADDR_LEN_READ_ERROR;
     }
     if (receiver_len != ADDRESS_LEN) {
-        return -20;
+        return WRONG_ADDRESS_LEN_ERROR;
     }
+    // read receiver address field
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) &payload->args.transfer.receiver, ADDRESS_LEN)) {
-        return -21;
+        return RECEIVER_ADDR_READ_ERROR;
     }
     uint32_t amount_len;
+    // read amount len
     if (!bcs_read_u32_from_uleb128(buf, &amount_len)) {
-        return -22;
+        return AMOUNT_LEN_READ_ERROR;
     }
     if (amount_len != sizeof(uint64_t)) {
-        return -23;
+        return WRONG_AMOUNT_LEN_ERROR;
     }
+    // read amount field
     if (!bcs_read_u64(buf, &payload->args.transfer.amount)) {
-        return -24;
+        return AMOUNT_READ_ERROR;
     }
 
     return PARSING_OK;
@@ -173,76 +180,89 @@ parser_status_e aptos_account_transfer_function_deserialize(buffer_t *buf, trans
 
 parser_status_e coin_transfer_function_deserialize(buffer_t *buf, transaction_t *tx) {
     if (tx->payload_variant != PAYLOAD_ENTRY_FUNCTION) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
     entry_function_payload_t *payload = &tx->payload.entry_function;
     if (payload->known_type != FUNC_COIN_TRANSFER) {
-        return -9;
+        return PAYLOAD_UNDEFINED_ERROR;
     }
 
+    // read type args size field
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->args.ty_size)) {
-        return -15;
+        return TYPE_ARGS_SIZE_READ_ERROR;
     }
     if (payload->args.ty_size != 1) {
-        return -16;
+        return -TYPE_ARGS_SIZE_UNEXPECTED_ERROR;
     }
 
-    uint32_t ty_arg_variant = TYPE_TAG_UNDEFINDED;
+    uint32_t ty_arg_variant = TYPE_TAG_UNDEFINED;
+    // read type tag variant
     if (!bcs_read_u32_from_uleb128(buf, &ty_arg_variant)) {
-        return -25;
+        return TYPE_TAG_READ_ERROR;
     }
     if (ty_arg_variant != TYPE_TAG_STRUCT) {
-        return -26;
+        return TYPE_TAG_UNEXPECTED_ERROR;
     }
 
     agrs_coin_trasfer_t *coin_transfer = &payload->args.coin_transfer;
+    // read coin struct address field
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) &coin_transfer->ty_coin.address, ADDRESS_LEN)) {
-        return -27;
+        return STRUCT_ADDRESS_READ_ERROR;
     }
+    // read coin struct module name len
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &coin_transfer->ty_coin.module_name.len)) {
-        return -28;
+        return STRUCT_MODULE_LEN_READ_ERROR;
     }
+    // read coin struct module name field
     if (!bcs_read_ptr_to_fixed_bytes(buf, &coin_transfer->ty_coin.module_name.bytes, coin_transfer->ty_coin.module_name.len)) {
-        return -29;
+        return STRUCT_MODULE_BYTES_READ_ERROR;
     }
+    // read coin struct name len
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &coin_transfer->ty_coin.name.len)) {
-        return -30;
+        return STRUCT_NAME_LEN_READ_ERROR;
     }
+    // read coin struct name field
     if (!bcs_read_ptr_to_fixed_bytes(buf, &coin_transfer->ty_coin.name.bytes, coin_transfer->ty_coin.name.len)) {
-        return -31;
+        return STRUCT_NAME_BYTES_READ_ERROR;
     }
+    // read coin struct args size
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &coin_transfer->ty_coin.type_args_size)) {
-        return -32;
+        return STRUCT_TYPE_ARGS_SIZE_READ_ERROR;
     }
     if (coin_transfer->ty_coin.type_args_size != 0) {
-        return -33;
+        return STRUCT_TYPE_ARGS_SIZE_UNEXPECTED_ERROR;
     }
 
+    // read args size
     if (!bcs_read_u32_from_uleb128(buf, (uint32_t *) &payload->args.args_size)) {
-        return -17;
+        return ARGS_SIZE_READ_ERROR;
     }
     if (payload->args.args_size != 2) {
-        return -18;
+        return ARGS_SIZE_UNEXPECTED_ERROR;
     }
     uint32_t receiver_len;
+    // read receiver address len
     if (!bcs_read_u32_from_uleb128(buf, &receiver_len)) {
-        return -19;
+        return RECEIVER_ADDR_LEN_READ_ERROR;
     }
     if (receiver_len != ADDRESS_LEN) {
-        return -20;
+        return WRONG_ADDRESS_LEN_ERROR;
     }
+    // read receiver address field
     if (!bcs_read_fixed_bytes(buf, (uint8_t *) &payload->args.transfer.receiver, ADDRESS_LEN)) {
-        return -21;
+        return RECEIVER_ADDR_READ_ERROR;
     }
     uint32_t amount_len;
+    // read amount len
     if (!bcs_read_u32_from_uleb128(buf, &amount_len)) {
-        return -22;
+        return AMOUNT_LEN_READ_ERROR;
     }
     if (amount_len != sizeof(uint64_t)) {
-        return -23;
+        return WRONG_AMOUNT_LEN_ERROR;
     }
+    // read amount field
     if (!bcs_read_u64(buf, &payload->args.transfer.amount)) {
-        return -24;
+        return AMOUNT_READ_ERROR;
     }
 
     return PARSING_OK;
