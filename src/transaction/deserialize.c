@@ -94,7 +94,9 @@ parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t 
     entry_function_payload_init(payload);
 
     // read module id address field
-    if (!bcs_read_fixed_bytes(buf, (uint8_t *) payload->module_id.address, sizeof payload->module_id.address)) {
+    if (!bcs_read_fixed_bytes(buf,
+                              (uint8_t *) payload->module_id.address,
+                              sizeof payload->module_id.address)) {
         return MODULE_ID_ADDR_READ_ERROR;
     }
     // read module_id name len field
@@ -102,7 +104,9 @@ parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t 
         return MODULE_ID_NAME_LEN_READ_ERROR;
     }
     //  read module_id name bytes field
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &payload->module_id.name.bytes, payload->module_id.name.len)) {
+    if (!bcs_read_ptr_to_fixed_bytes(buf,
+                                     &payload->module_id.name.bytes,
+                                     payload->module_id.name.len)) {
         return MODULE_ID_NAME_BYTES_READ_ERROR;
     }
     // read function_name len field
@@ -110,7 +114,9 @@ parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t 
         return FUNCTION_NAME_LEN_READ_ERROR;
     }
     // read function_name bytes field
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &payload->function_name.bytes, payload->function_name.len)) {
+    if (!bcs_read_ptr_to_fixed_bytes(buf,
+                                     &payload->function_name.bytes,
+                                     payload->function_name.len)) {
         return FUNCTION_NAME_BYTES_READ_ERROR;
     }
 
@@ -214,7 +220,9 @@ parser_status_e coin_transfer_function_deserialize(buffer_t *buf, transaction_t 
         return STRUCT_MODULE_LEN_READ_ERROR;
     }
     // read coin struct module name field
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &coin_transfer->ty_coin.module_name.bytes, coin_transfer->ty_coin.module_name.len)) {
+    if (!bcs_read_ptr_to_fixed_bytes(buf,
+                                     &coin_transfer->ty_coin.module_name.bytes,
+                                     coin_transfer->ty_coin.module_name.len)) {
         return STRUCT_MODULE_BYTES_READ_ERROR;
     }
     // read coin struct name len
@@ -222,7 +230,9 @@ parser_status_e coin_transfer_function_deserialize(buffer_t *buf, transaction_t 
         return STRUCT_NAME_LEN_READ_ERROR;
     }
     // read coin struct name field
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &coin_transfer->ty_coin.name.bytes, coin_transfer->ty_coin.name.len)) {
+    if (!bcs_read_ptr_to_fixed_bytes(buf,
+                                     &coin_transfer->ty_coin.name.bytes,
+                                     coin_transfer->ty_coin.name.len)) {
         return STRUCT_NAME_BYTES_READ_ERROR;
     }
     // read coin struct args size

@@ -233,8 +233,8 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
     }
     vector_val->value = (type_tag_t *) malloc(sizeof(type_tag_t) * vector_val->size);
     for (size_t i = 0; i < vector_val->size; i++) {
-        if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) (*(type_tag_t *) vector_val->value).type_tag)) {
-            return false;
+        if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) (*(type_tag_t *)
+vector_val->value).type_tag)) { return false;
         }
         if ((*(type_tag_t *) vector_val->value).type_tag < TYPE_TAG_VECTOR) {
             if (!bcs_read_type_tag_fixed(buffer, &(*(type_tag_t *) vector_val->value))) {
@@ -246,8 +246,8 @@ bool bcs_read_type_tag_vector(buffer_t *buffer, type_tag_t *vector_val) {
             }
         } else if ((*(type_tag_t *) vector_val->value).type_tag == TYPE_TAG_STRUCT) {
             (*(type_tag_t *) vector_val->value).size = sizeof(type_tag_struct_t);
-            (*(type_tag_t *) vector_val->value).value = (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
-            type_tag_struct_init((*(type_tag_t *) vector_val->value).value);
+            (*(type_tag_t *) vector_val->value).value = (type_tag_struct_t *)
+malloc(sizeof(type_tag_struct_t)); type_tag_struct_init((*(type_tag_t *) vector_val->value).value);
 
             if (!bcs_read_type_tag_struct(buffer, (*(type_tag_t *) vector_val->value).value)) {
                 return false;
@@ -267,8 +267,8 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
         return false;
     }
     ty_struct->module_name.bytes = (uint8_t *) malloc(sizeof(uint8_t) * ty_struct->module_name.len);
-    if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->module_name.bytes, ty_struct->module_name.len)) {
-        return false;
+    if (!bcs_read_fixed_bytes(buffer, (uint8_t *) &ty_struct->module_name.bytes,
+ty_struct->module_name.len)) { return false;
     }
     if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->name.len)) {
         return false;
@@ -281,18 +281,18 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
         return false;
     }
     if (ty_struct->type_args_size > 0) {
-        ty_struct->type_args = (type_tag_t *) malloc(sizeof(type_tag_t) * ty_struct->type_args_size);
-        for (size_t i = 0; i < ty_struct->type_args_size; i++) {
+        ty_struct->type_args = (type_tag_t *) malloc(sizeof(type_tag_t) *
+ty_struct->type_args_size); for (size_t i = 0; i < ty_struct->type_args_size; i++) {
             ty_struct->type_args[i].type_tag = 0;
             ty_struct->type_args[i].size = 0;
             ty_struct->type_args[i].value = NULL;
 
-            if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->type_args[i].type_tag)) {
-                return false;
+            if (!bcs_read_u32_from_uleb128(buffer, (uint32_t *) &ty_struct->type_args[i].type_tag))
+{ return false;
             }
             if (ty_struct->type_args[i].type_tag < TYPE_TAG_VECTOR) {
-                if (!bcs_read_type_tag_fixed(buffer, (type_tag_t *) &ty_struct->type_args[i].value)) {
-                    return false;
+                if (!bcs_read_type_tag_fixed(buffer, (type_tag_t *) &ty_struct->type_args[i].value))
+{ return false;
                 }
             } else if (ty_struct->type_args[i].type_tag == TYPE_TAG_VECTOR) {
                 if (!bcs_read_type_tag_vector(buffer, &ty_struct->type_args[i])) {
@@ -300,8 +300,8 @@ bool bcs_read_type_tag_struct(buffer_t *buffer, type_tag_struct_t *ty_struct) {
                 }
             } else if (ty_struct->type_args[i].type_tag == TYPE_TAG_STRUCT) {
                 ty_struct->type_args[i].size = sizeof(type_tag_struct_t);
-                ty_struct->type_args[i].value = (type_tag_struct_t *) malloc(sizeof(type_tag_struct_t));
-                type_tag_struct_init(ty_struct->type_args[i].value);
+                ty_struct->type_args[i].value = (type_tag_struct_t *)
+malloc(sizeof(type_tag_struct_t)); type_tag_struct_init(ty_struct->type_args[i].value);
 
                 if (!bcs_read_type_tag_struct(buffer, ty_struct->type_args[i].value)) {
                     return false;
