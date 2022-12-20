@@ -17,15 +17,17 @@
 #define RAW_TRANSACTION_WITH_DATA_SALT "APTOS::RawTransactionWithData"
 // size of hashed prefix
 #define TX_HASHED_PREFIX_LEN 32
-// size in bytes of data (max_gas_amount + gas_unit_price + expiration_timestamp_secs + chain_id) at the end of the transaction
+// size in bytes of data (max_gas_amount + gas_unit_price + expiration_timestamp_secs + chain_id)
+// at the end of the transaction
 #define TX_FOOTER_LEN 25
 // sha3-256 hash of the RAW_TRANSACTION_SALT
-static const uint8_t PREFIX_RAW_TX_HASHED[] = {181, 233, 125, 176, 127, 160, 189, 14,  85,  152, 170, 54, 67,  169, 188, 111,
-                                               102, 147, 189, 220, 26,  159, 236, 158, 103, 74,  70,  30, 170, 0,   177, 147};
+static const uint8_t PREFIX_RAW_TX_HASHED[] = {
+    181, 233, 125, 176, 127, 160, 189, 14,  85,  152, 170, 54, 67,  169, 188, 111,
+    102, 147, 189, 220, 26,  159, 236, 158, 103, 74,  70,  30, 170, 0,   177, 147};
 // sha3-256 hash of the RAW_TRANSACTION_WITH_DATA_SALT
-static const uint8_t PREFIX_RAW_TX_WITH_DATA_HASHED[] = {94,  250, 60,  79,  2,   248, 58,  15,  75,  45,  105,
-                                                         252, 149, 198, 7,   204, 2,   130, 92,  196, 231, 190,
-                                                         83,  110, 240, 153, 45,  240, 80,  217, 230, 124};
+static const uint8_t PREFIX_RAW_TX_WITH_DATA_HASHED[] = {
+    94, 250, 60, 79,  2,   248, 58, 15,  75,  45,  105, 252, 149, 198, 7,   204,
+    2,  130, 92, 196, 231, 190, 83, 110, 240, 153, 45,  240, 80,  217, 230, 124};
 
 typedef struct {
     uint64_t high;
@@ -73,7 +75,11 @@ typedef struct {
     fixed_bytes_t name;
 } module_id_t;
 
-typedef enum { FUNC_UNKNOWN = 0, FUNC_APTOS_ACCOUNT_TRANSFER = 1, FUNC_COIN_TRANSFER = 2 } entry_function_known_type_t;
+typedef enum {
+    FUNC_UNKNOWN = 0,
+    FUNC_APTOS_ACCOUNT_TRANSFER = 1,
+    FUNC_COIN_TRANSFER = 2
+} entry_function_known_type_t;
 
 typedef struct {
     type_tag_t *ty_args;
@@ -116,7 +122,11 @@ typedef struct {
 
 typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_UNDEFINED = 1000 } tx_variant_t;
 
-typedef enum { PAYLOAD_SCRIPT = 0, PAYLOAD_ENTRY_FUNCTION = 2, PAYLOAD_UNDEFINED = 1000 } payload_variant_t;
+typedef enum {
+    PAYLOAD_SCRIPT = 0,
+    PAYLOAD_ENTRY_FUNCTION = 2,
+    PAYLOAD_UNDEFINED = 1000
+} payload_variant_t;
 
 typedef struct {
     tx_variant_t tx_variant;

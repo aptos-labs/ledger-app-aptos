@@ -97,7 +97,10 @@ int ui_display_address() {
     }
 
     memset(g_bip32_path, 0, sizeof(g_bip32_path));
-    if (!bip32_path_format(G_context.bip32_path, G_context.bip32_path_len, g_bip32_path, sizeof(g_bip32_path))) {
+    if (!bip32_path_format(G_context.bip32_path,
+                           G_context.bip32_path_len,
+                           g_bip32_path,
+                           sizeof(g_bip32_path))) {
         return io_send_sw(SW_DISPLAY_BIP32_PATH_FAIL);
     }
 
@@ -256,7 +259,10 @@ int ui_display_transaction() {
                 break;
             default:
                 memset(g_struct, 0, sizeof(g_struct));
-                snprintf(g_struct, sizeof(g_struct), "%s [payload = UNKNOWN]", RAW_TRANSACTION_SALT);
+                snprintf(g_struct,
+                         sizeof(g_struct),
+                         "%s [payload = UNKNOWN]",
+                         RAW_TRANSACTION_SALT);
                 break;
         }
     } else {
@@ -297,7 +303,8 @@ int ui_display_entry_function() {
 }
 
 int ui_display_tx_aptos_account_transfer() {
-    agrs_aptos_account_trasfer_t *transfer = &G_context.tx_info.transaction.payload.entry_function.args.transfer;
+    agrs_aptos_account_trasfer_t *transfer =
+        &G_context.tx_info.transaction.payload.entry_function.args.transfer;
 
     memset(g_address, 0, sizeof(g_address));
     snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);
@@ -317,7 +324,8 @@ int ui_display_tx_aptos_account_transfer() {
 }
 
 int ui_display_tx_coin_transfer() {
-    agrs_coin_trasfer_t *transfer = &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
+    agrs_coin_trasfer_t *transfer =
+        &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
 
     memset(g_struct, 0, sizeof(g_struct));
     snprintf(g_struct,

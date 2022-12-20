@@ -16,7 +16,11 @@ bool try_push_char(uint8_t *out, size_t *out_len, uint8_t ch, size_t max_len) {
  * Checks if the data is in UTF-8 format and tries to convert it to ASCII
  * Adapted from: https://www.cl.cam.ac.uk/~mgk25/ucs/utf8_check.c
  */
-int try_utf8_to_ascii(const uint8_t *in, size_t in_len, uint8_t *out, size_t max_out_len, bool *out_is_utf8) {
+int try_utf8_to_ascii(const uint8_t *in,
+                      size_t in_len,
+                      uint8_t *out,
+                      size_t max_out_len,
+                      bool *out_is_utf8) {
     if (!in) {
         return 0;
     }
