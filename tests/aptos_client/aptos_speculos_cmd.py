@@ -112,6 +112,24 @@ class AptosSpeculosCommand:
                                                       data=chunk[5:]) as exchange:
                     # Review Transaction
                     self.client.press_and_release('right')
+                    # Function
+                    self.client.press_and_release('right')
+                    # Coin Type
+                    # Due to screen size, NanoS needs 1 more screens to display the coin type
+                    if model == 'nanos':
+                        self.client.press_and_release('right')
+                    self.client.press_and_release('right')
+                    # Receiver
+                    # Due to screen size, NanoS needs 2 more screens to display the address
+                    if model == 'nanos':
+                        self.client.press_and_release('right')
+                        self.client.press_and_release('right')
+                    self.client.press_and_release('right')
+                    self.client.press_and_release('right')
+                    # Amount
+                    self.client.press_and_release('right')
+                    # Gas Fee
+                    self.client.press_and_release('right')
                     # Approve
                     self.client.press_and_release('both')
                     response = exchange.receive()

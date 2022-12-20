@@ -110,6 +110,24 @@ class AptosCommand:
             if is_last:
                 # Review Transaction
                 button.right_click()
+                # Function
+                button.right_click()
+                # Coin Type
+                # Due to screen size, NanoS needs 1 more screens to display the coin type
+                if model == 'nanos':
+                    button.right_click()
+                button.right_click()
+                # Receiver
+                # Due to screen size, NanoS needs 2 more screens to display the address
+                if model == 'nanos':
+                    button.right_click()
+                    button.right_click()
+                button.right_click()
+                button.right_click()
+                # Amount
+                button.right_click()
+                # Gas Fee
+                button.right_click()
                 # Approve
                 button.both_click()
 
