@@ -3,25 +3,46 @@
 #include <stddef.h>  // size_t
 #include <stdint.h>  // uint*_t
 
-#define MAX_TX_LEN   510
-#define ADDRESS_LEN  32
-#define MAX_MEMO_LEN 465  // 510 - ADDRESS_LEN - 2*SIZE(U64) - SIZE(MAX_VARINT)
+#include "../bcs/types.h"
+
+#define MAX_TX_LEN 510
 
 typedef enum {
     PARSING_OK = 1,
-    NONCE_PARSING_ERROR = -1,
-    TO_PARSING_ERROR = -2,
-    VALUE_PARSING_ERROR = -3,
-    MEMO_LENGTH_ERROR = -4,
-    MEMO_PARSING_ERROR = -5,
-    MEMO_ENCODING_ERROR = -6,
-    WRONG_LENGTH_ERROR = -7
+    HASHED_PREFIX_READ_ERROR = -1,
+    SENDER_READ_ERROR = -2,
+    SEQUENCE_READ_ERROR = -3,
+    MAX_GAS_READ_ERROR = -4,
+    GAS_UNIT_PRICE_READ_ERROR = -5,
+    EXPIRATION_READ_ERROR = -6,
+    CHAIN_ID_READ_ERROR = -7,
+    PAYLOAD_VARIANT_READ_ERROR = -8,
+    PAYLOAD_UNDEFINED_ERROR = -9,
+    MODULE_ID_ADDR_READ_ERROR = -10,
+    MODULE_ID_NAME_LEN_READ_ERROR = -11,
+    MODULE_ID_NAME_BYTES_READ_ERROR = -12,
+    FUNCTION_NAME_LEN_READ_ERROR = -13,
+    FUNCTION_NAME_BYTES_READ_ERROR = -14,
+    TYPE_ARGS_SIZE_READ_ERROR = -15,
+    TYPE_ARGS_SIZE_UNEXPECTED_ERROR = -16,
+    ARGS_SIZE_READ_ERROR = -17,
+    ARGS_SIZE_UNEXPECTED_ERROR = -18,
+    RECEIVER_ADDR_LEN_READ_ERROR = -19,
+    WRONG_ADDRESS_LEN_ERROR = -20,
+    RECEIVER_ADDR_READ_ERROR = -21,
+    AMOUNT_LEN_READ_ERROR = -22,
+    WRONG_AMOUNT_LEN_ERROR = -23,
+    AMOUNT_READ_ERROR = -24,
+    TYPE_TAG_READ_ERROR = -25,
+    TYPE_TAG_UNEXPECTED_ERROR = -26,
+    STRUCT_ADDRESS_READ_ERROR = -27,
+    STRUCT_MODULE_LEN_READ_ERROR = -28,
+    STRUCT_MODULE_BYTES_READ_ERROR = -29,
+    STRUCT_NAME_LEN_READ_ERROR = -30,
+    STRUCT_NAME_BYTES_READ_ERROR = -31,
+    STRUCT_TYPE_ARGS_SIZE_READ_ERROR = -32,
+    STRUCT_TYPE_ARGS_SIZE_UNEXPECTED_ERROR = -33,
+    WRONG_LENGTH_ERROR = -2000
 } parser_status_e;
 
-typedef struct {
-    uint64_t nonce;     /// nonce (8 bytes)
-    uint64_t value;     /// amount value (8 bytes)
-    uint8_t *to;        /// pointer to address (20 bytes)
-    uint8_t *memo;      /// memo (variable length)
-    uint64_t memo_len;  /// length of memo (8 bytes)
-} transaction_t;
+typedef aptos_transaction_t transaction_t;

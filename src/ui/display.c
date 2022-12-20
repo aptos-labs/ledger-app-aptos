@@ -38,8 +38,11 @@
 
 static action_validate_cb g_validate_callback;
 static char g_amount[30];
+static char g_gas_fee[30];
 static char g_bip32_path[60];
 static char g_address[67];
+static char g_function[50];
+static char g_struct[50];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
@@ -94,10 +97,7 @@ int ui_display_address() {
     }
 
     memset(g_bip32_path, 0, sizeof(g_bip32_path));
-    if (!bip32_path_format(G_context.bip32_path,
-                           G_context.bip32_path_len,
-                           g_bip32_path,
-                           sizeof(g_bip32_path))) {
+    if (!bip32_path_format(G_context.bip32_path, G_context.bip32_path_len, g_bip32_path, sizeof(g_bip32_path))) {
         return io_send_sw(SW_DISPLAY_BIP32_PATH_FAIL);
     }
 
@@ -123,6 +123,34 @@ UX_STEP_NOCB(ux_display_review_step,
                  "Review",
                  "Transaction",
              });
+// Step with title/text for transaction type
+UX_STEP_NOCB(ux_display_tx_type_step,
+             bnnn_paging,
+             {
+                 .title = "Tx Type",
+                 .text = g_struct,
+             });
+// Step with title/text for function
+UX_STEP_NOCB(ux_display_function_step,
+             bnnn_paging,
+             {
+                 .title = "Function",
+                 .text = g_function,
+             });
+// Step with title/text for coin type
+UX_STEP_NOCB(ux_display_coin_type_step,
+             bnnn_paging,
+             {
+                 .title = "Coin Type",
+                 .text = g_struct,
+             });
+// Step with title/text for receiver
+UX_STEP_NOCB(ux_display_receiver_step,
+             bnnn_paging,
+             {
+                 .title = "Receiver",
+                 .text = g_address,
+             });
 // Step with title/text for amount
 UX_STEP_NOCB(ux_display_amount_step,
              bnnn_paging,
@@ -130,17 +158,72 @@ UX_STEP_NOCB(ux_display_amount_step,
                  .title = "Amount",
                  .text = g_amount,
              });
+// Step with title/text for gas fee
+UX_STEP_NOCB(ux_display_gas_fee_step,
+             bnnn_paging,
+             {
+                 .title = "Gas Fee",
+                 .text = g_gas_fee,
+             });
 
-// FLOW to display transaction information:
+// FLOW to display default transaction information:
 // #1 screen : eye icon + "Review Transaction"
-// #2 screen : display amount
-// #3 screen : display destination address
+// #2 screen : display gas fee
+// #3 screen : approve button
+// #4 screen : reject button
+UX_FLOW(ux_display_tx_default_flow,
+        &ux_display_review_step,
+        &ux_display_tx_type_step,
+        &ux_display_gas_fee_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+// FLOW to display entry_function transaction information:
+// #1 screen : eye icon + "Review Transaction"
+// #2 screen : display function name
+// #3 screen : display gas fee
 // #4 screen : approve button
 // #5 screen : reject button
-UX_FLOW(ux_display_transaction_flow,
+UX_FLOW(ux_display_tx_entry_function_flow,
         &ux_display_review_step,
-        // &ux_display_address_step,
-        // &ux_display_amount_step,
+        &ux_display_function_step,
+        &ux_display_gas_fee_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+// FLOW to display aptos_account_transfer transaction information:
+// #1 screen : eye icon + "Review Transaction"
+// #2 screen : display function name
+// #3 screen : display destination address
+// #4 screen : display amount
+// #5 screen : display gas fee
+// #6 screen : approve button
+// #7 screen : reject button
+UX_FLOW(ux_display_tx_aptos_account_transfer_flow,
+        &ux_display_review_step,
+        &ux_display_function_step,
+        &ux_display_receiver_step,
+        &ux_display_amount_step,
+        &ux_display_gas_fee_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+// FLOW to display coin_transfer transaction information:
+// #1 screen : eye icon + "Review Transaction"
+// #2 screen : display function name
+// #3 screen : display coin type
+// #4 screen : display destination address
+// #5 screen : display amount
+// #6 screen : display gas fee
+// #7 screen : approve button
+// #8 screen : reject button
+UX_FLOW(ux_display_tx_coin_transfer_flow,
+        &ux_display_review_step,
+        &ux_display_function_step,
+        &ux_display_coin_type_step,
+        &ux_display_receiver_step,
+        &ux_display_amount_step,
+        &ux_display_gas_fee_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
@@ -150,24 +233,117 @@ int ui_display_transaction() {
         return io_send_sw(SW_BAD_STATE);
     }
 
-    // memset(g_amount, 0, sizeof(g_amount));
-    // char amount[30] = {0};
-    // if (!format_fpu64(amount,
-    //                   sizeof(amount),
-    //                   G_context.tx_info.transaction.value,
-    //                   EXPONENT_SMALLEST_UNIT)) {
-    //     return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
-    // }
-    // snprintf(g_amount, sizeof(g_amount), "BOL %.*s", sizeof(amount), amount);
-    // PRINTF("Amount: %s\n", g_amount);
-
-    // memset(g_address, 0, sizeof(g_address));
-    // snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN,
-    // G_context.tx_info.transaction.to);
-
     g_validate_callback = &ui_action_validate_transaction;
 
-    ux_flow_init(0, ux_display_transaction_flow, NULL);
+    transaction_t *transaction = &G_context.tx_info.transaction;
+
+    uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
+    memset(g_gas_fee, 0, sizeof(g_gas_fee));
+    char gas_fee[30] = {0};
+    if (!format_fpu64(gas_fee, sizeof(gas_fee), gas_fee_value, 8)) {
+        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);  // TODO: SW_DISPLAY_GAS_FEE_FAIL
+    }
+    snprintf(g_gas_fee, sizeof(g_gas_fee), "APT %.*s", sizeof(gas_fee), gas_fee);
+    PRINTF("Gas Fee: %s\n", g_gas_fee);
+
+    if (transaction->tx_variant == TX_RAW) {
+        switch (transaction->payload_variant) {
+            case PAYLOAD_ENTRY_FUNCTION:
+                return ui_display_entry_function();
+            case PAYLOAD_SCRIPT:
+                memset(g_struct, 0, sizeof(g_struct));
+                snprintf(g_struct, sizeof(g_struct), "%s [payload = SCRIPT]", RAW_TRANSACTION_SALT);
+                break;
+            default:
+                memset(g_struct, 0, sizeof(g_struct));
+                snprintf(g_struct, sizeof(g_struct), "%s [payload = UNKNOWN]", RAW_TRANSACTION_SALT);
+                break;
+        }
+    } else {
+        memset(g_struct, 0, sizeof(g_struct));
+        snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
+    }
+
+    ux_flow_init(0, ux_display_tx_default_flow, NULL);
+
+    return 0;
+}
+
+int ui_display_entry_function() {
+    entry_function_payload_t *function = &G_context.tx_info.transaction.payload.entry_function;
+
+    memset(g_function, 0, sizeof(g_function));
+    snprintf(g_function,
+             sizeof(g_function),
+             "0x%.*H::%.*s::%.*s",
+             UI_MODULE_ADDRESS_LEN,
+             function->module_id.address + ADDRESS_LEN - UI_MODULE_ADDRESS_LEN,
+             function->module_id.name.len,
+             function->module_id.name.bytes,
+             function->function_name.len,
+             function->function_name.bytes);
+    PRINTF("Function: %s\n", g_function);
+
+    switch (function->known_type) {
+        case FUNC_APTOS_ACCOUNT_TRANSFER:
+            return ui_display_tx_aptos_account_transfer();
+        case FUNC_COIN_TRANSFER:
+            return ui_display_tx_coin_transfer();
+        default:
+            ux_flow_init(0, ux_display_tx_entry_function_flow, NULL);
+            break;
+    }
+    return 0;
+}
+
+int ui_display_tx_aptos_account_transfer() {
+    agrs_aptos_account_trasfer_t *transfer = &G_context.tx_info.transaction.payload.entry_function.args.transfer;
+
+    memset(g_address, 0, sizeof(g_address));
+    snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);
+    PRINTF("Receiver: %s\n", g_address);
+
+    memset(g_amount, 0, sizeof(g_amount));
+    char amount[30] = {0};
+    if (!format_fpu64(amount, sizeof(amount), transfer->amount, 8)) {
+        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
+    }
+    snprintf(g_amount, sizeof(g_amount), "APT %.*s", sizeof(amount), amount);
+    PRINTF("Amount: %s\n", g_amount);
+
+    ux_flow_init(0, ux_display_tx_aptos_account_transfer_flow, NULL);
+
+    return 0;
+}
+
+int ui_display_tx_coin_transfer() {
+    agrs_coin_trasfer_t *transfer = &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
+
+    memset(g_struct, 0, sizeof(g_struct));
+    snprintf(g_struct,
+             sizeof(g_struct),
+             "0x%.*H..%.*H::%.*s::%.*s",
+             UI_MODULE_ADDRESS_LEN,
+             transfer->ty_coin.address,
+             UI_MODULE_ADDRESS_LEN,
+             transfer->ty_coin.address + ADDRESS_LEN - UI_MODULE_ADDRESS_LEN,
+             transfer->ty_coin.module_name.len,
+             transfer->ty_coin.module_name.bytes,
+             transfer->ty_coin.name.len,
+             transfer->ty_coin.name.bytes);
+    PRINTF("Coin Type: %s\n", g_struct);
+
+    memset(g_address, 0, sizeof(g_address));
+    snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);
+    PRINTF("Receiver: %s\n", g_address);
+
+    memset(g_amount, 0, sizeof(g_amount));
+    if (!format_fpu64(g_amount, sizeof(g_amount), transfer->amount, 8)) {
+        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
+    }
+    PRINTF("Amount: %s\n", g_amount);
+
+    ux_flow_init(0, ux_display_tx_coin_transfer_flow, NULL);
 
     return 0;
 }
