@@ -6,14 +6,14 @@
 #include "types.h"
 
 /**
- * Check if memo is encoded using ASCII characters.
+ * Check if msg is encoded using ASCII characters.
  *
- * @param[in] memo
+ * @param[in] msg
  *   Pointer to input byte buffer.
- * @param[in] memo_len
+ * @param[in] msg_len
  *   Length of input byte buffer.
  *
  * @return true if success, false otherwise.
  *
  */
-bool transaction_utils_check_encoding(const uint8_t *memo, uint64_t memo_len);
+bool transaction_utils_check_encoding(const uint8_t *msg, uint64_t msg_len);

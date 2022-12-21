@@ -42,7 +42,7 @@ static char g_gas_fee[30];
 static char g_bip32_path[60];
 static char g_address[67];
 static char g_function[50];
-static char g_struct[50];
+static char g_struct[250];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
@@ -126,6 +126,21 @@ UX_STEP_NOCB(ux_display_review_step,
                  "Review",
                  "Transaction",
              });
+// Step with icon and text
+UX_STEP_NOCB(ux_display_review_msg_step,
+             pnn,
+             {
+                 &C_icon_eye,
+                 "Review",
+                 "Message",
+             });
+// Step with title/text for message
+UX_STEP_NOCB(ux_display_msg_step,
+             bnnn_paging,
+             {
+                 .title = "Message",
+                 .text = g_struct,
+             });
 // Step with title/text for transaction type
 UX_STEP_NOCB(ux_display_tx_type_step,
              bnnn_paging,
@@ -171,13 +186,25 @@ UX_STEP_NOCB(ux_display_gas_fee_step,
 
 // FLOW to display default transaction information:
 // #1 screen : eye icon + "Review Transaction"
-// #2 screen : display gas fee
-// #3 screen : approve button
-// #4 screen : reject button
+// #2 screen : display tx type
+// #3 screen : display gas fee
+// #4 screen : approve button
+// #5 screen : reject button
 UX_FLOW(ux_display_tx_default_flow,
         &ux_display_review_step,
         &ux_display_tx_type_step,
         &ux_display_gas_fee_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+// FLOW to display message information:
+// #1 screen : eye icon + "Review Message"
+// #2 screen : display message
+// #3 screen : approve button
+// #4 screen : reject button
+UX_FLOW(ux_display_message_flow,
+        &ux_display_review_msg_step,
+        &ux_display_msg_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
@@ -265,12 +292,31 @@ int ui_display_transaction() {
                          RAW_TRANSACTION_SALT);
                 break;
         }
-    } else {
+    } else if (transaction->tx_variant == TX_MESSAGE) {
+        return ui_display_message();
+    } else if (transaction->tx_variant == TX_RAW_WITH_DATA) {
         memset(g_struct, 0, sizeof(g_struct));
         snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
+    } else {
+        memset(g_struct, 0, sizeof(g_struct));
+        snprintf(g_struct, sizeof(g_struct), "unknown data type");
     }
 
     ux_flow_init(0, ux_display_tx_default_flow, NULL);
+
+    return 0;
+}
+
+int ui_display_message() {
+    memset(g_struct, 0, sizeof(g_struct));
+    snprintf(g_struct,
+             sizeof(g_struct),
+             "%.*s",
+             G_context.tx_info.raw_tx_len,
+             G_context.tx_info.raw_tx);
+    PRINTF("Message: %s\n", g_struct);
+
+    ux_flow_init(0, ux_display_message_flow, NULL);
 
     return 0;
 }
