@@ -16,6 +16,10 @@
  */
 parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx);
 
+parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx);
+
+parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx);
+
 parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t *tx);
 
 parser_status_e aptos_account_transfer_function_deserialize(buffer_t *buf, transaction_t *tx);

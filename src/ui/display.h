@@ -25,6 +25,8 @@ int ui_display_address(void);
  */
 int ui_display_transaction(void);
 
+int ui_display_message(void);
+
 int ui_display_entry_function(void);
 
 int ui_display_tx_aptos_account_transfer(void);

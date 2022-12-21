@@ -12,19 +12,26 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
     }
     transaction_init(tx);
 
-    uint8_t *prefix;
-    // read hashed prefix bytes
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
-        return HASHED_PREFIX_READ_ERROR;
+    parser_status_e tx_variant_parsing_status = tx_variant_deserialize(buf, tx);
+    if (tx_variant_parsing_status != PARSING_OK) {
+        return tx_variant_parsing_status;
     }
 
-    if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
-        tx->tx_variant = TX_RAW_WITH_DATA;
-        return PARSING_OK;
+    switch (tx->tx_variant) {
+        case TX_RAW:
+            return tx_raw_deserialize(buf, tx);
+        case TX_RAW_WITH_DATA:
+        case TX_MESSAGE:
+        default:
+            break;
     }
 
-    if (memcmp(prefix, PREFIX_RAW_TX_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
-        tx->tx_variant = TX_RAW;
+    return PARSING_OK;
+}
+
+parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx) {
+    if (tx->tx_variant != TX_RAW) {
+        return TX_VARIANT_UNDEFINED_ERROR;
     }
 
     // read sender address
@@ -84,6 +91,38 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
     }
 
     return PARSING_OK;
+}
+
+parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx) {
+    if (buf->offset != 0) {
+        return TX_VARIANT_READ_ERROR;
+    }
+
+    tx->tx_variant = TX_UNDEFINED;
+
+    uint8_t *prefix;
+    // read hashed prefix bytes
+    if (!bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
+        return HASHED_PREFIX_READ_ERROR;
+    }
+
+    if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+        tx->tx_variant = TX_RAW_WITH_DATA;
+        return PARSING_OK;
+    }
+
+    if (memcmp(prefix, PREFIX_RAW_TX_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+        tx->tx_variant = TX_RAW;
+        return PARSING_OK;
+    }
+
+    if (transaction_utils_check_encoding(buf->ptr, buf->size)) {
+        buf->offset = 0;
+        tx->tx_variant = TX_MESSAGE;
+        return PARSING_OK;
+    }
+
+    return TX_VARIANT_UNDEFINED_ERROR;
 }
 
 parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t *tx) {
