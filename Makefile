@@ -23,9 +23,9 @@ include $(BOLOS_SDK)/Makefile.defines
 
 APP_LOAD_PARAMS  = --curve ed25519
 ifeq ($(TARGET_NAME), TARGET_NANOX)
-APP_LOAD_PARAMS=--appFlags 0x200  # APPLICATION_FLAG_BOLOS_SETTINGS
+APP_LOAD_PARAMS += --appFlags 0x200  # APPLICATION_FLAG_BOLOS_SETTINGS
 else
-APP_LOAD_PARAMS=--appFlags 0x000
+APP_LOAD_PARAMS += --appFlags 0x000
 endif
 APP_LOAD_PARAMS += --path "44'/637'"
 APP_LOAD_PARAMS += $(COMMON_LOAD_PARAMS)
@@ -128,4 +128,4 @@ include $(BOLOS_SDK)/Makefile.rules
 dep/%.d: %.c Makefile
 
 listvariants:
-	@echo VARIANTS COIN BOL
+	@echo VARIANTS COIN APTOS
