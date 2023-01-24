@@ -12,6 +12,9 @@ set(CMAKE_C_FLAGS_DEBUG
 )
 
 add_library(txparser SHARED
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/bcs/init.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/bcs/decoder.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/bcs/utf8.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/common/bip32.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/common/varint.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/common/read.c
