@@ -102,18 +102,16 @@ parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx) {
 
     uint8_t *prefix;
     // read hashed prefix bytes
-    if (!bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
-        return HASHED_PREFIX_READ_ERROR;
-    }
+    if (bcs_read_ptr_to_fixed_bytes(buf, &prefix, TX_HASHED_PREFIX_LEN)) {
+        if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+            tx->tx_variant = TX_RAW_WITH_DATA;
+            return PARSING_OK;
+        }
 
-    if (memcmp(prefix, PREFIX_RAW_TX_WITH_DATA_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
-        tx->tx_variant = TX_RAW_WITH_DATA;
-        return PARSING_OK;
-    }
-
-    if (memcmp(prefix, PREFIX_RAW_TX_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
-        tx->tx_variant = TX_RAW;
-        return PARSING_OK;
+        if (memcmp(prefix, PREFIX_RAW_TX_HASHED, TX_HASHED_PREFIX_LEN) == 0) {
+            tx->tx_variant = TX_RAW;
+            return PARSING_OK;
+        }
     }
 
     if (transaction_utils_check_encoding(buf->ptr, buf->size)) {
