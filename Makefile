@@ -32,8 +32,8 @@ APP_LOAD_PARAMS += $(COMMON_LOAD_PARAMS)
 
 APPNAME      = "Aptos"
 APPVERSION_M = 0
-APPVERSION_N = 0
-APPVERSION_P = 1
+APPVERSION_N = 1
+APPVERSION_P = 0
 APPVERSION   = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 # Ledger: add the "Pending security review" disclaimer

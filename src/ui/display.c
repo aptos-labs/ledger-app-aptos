@@ -145,7 +145,7 @@ UX_STEP_NOCB(ux_display_msg_step,
 UX_STEP_NOCB(ux_display_tx_type_step,
              bnnn_paging,
              {
-                 .title = "Tx Type",
+                 .title = "Transaction Type",
                  .text = g_struct,
              });
 // Step with title/text for function
@@ -223,14 +223,16 @@ UX_FLOW(ux_display_tx_entry_function_flow,
 
 // FLOW to display aptos_account_transfer transaction information:
 // #1 screen : eye icon + "Review Transaction"
-// #2 screen : display function name
-// #3 screen : display destination address
-// #4 screen : display amount
-// #5 screen : display gas fee
-// #6 screen : approve button
-// #7 screen : reject button
+// #2 screen : display tx type
+// #3 screen : display function name
+// #4 screen : display destination address
+// #5 screen : display amount
+// #6 screen : display gas fee
+// #7 screen : approve button
+// #8 screen : reject button
 UX_FLOW(ux_display_tx_aptos_account_transfer_flow,
         &ux_display_review_step,
+        &ux_display_tx_type_step,
         &ux_display_function_step,
         &ux_display_receiver_step,
         &ux_display_amount_step,
@@ -351,6 +353,11 @@ int ui_display_entry_function() {
 int ui_display_tx_aptos_account_transfer() {
     agrs_aptos_account_trasfer_t *transfer =
         &G_context.tx_info.transaction.payload.entry_function.args.transfer;
+
+    // For well-known functions, display the transaction type in human-readable format
+    memset(g_struct, 0, sizeof(g_struct));
+    snprintf(g_struct, sizeof(g_struct), "APT transfer");
+    PRINTF("Tx Type: %s\n", g_struct);
 
     memset(g_address, 0, sizeof(g_address));
     snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);

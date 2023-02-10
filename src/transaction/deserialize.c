@@ -2,12 +2,13 @@
 #include "deserialize.h"
 #include "utils.h"
 #include "types.h"
+#include "../constants.h"
 #include "../common/buffer.h"
 #include "../bcs/init.h"
 #include "../bcs/decoder.h"
 
 parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
-    if (buf->size > MAX_TX_LEN) {
+    if (buf->size > MAX_TRANSACTION_LEN) {
         return WRONG_LENGTH_ERROR;
     }
     transaction_init(tx);
@@ -322,12 +323,14 @@ entry_function_known_type_t determine_function_type(transaction_t *tx) {
         return FUNC_UNKNOWN;
     }
 
+    // TODO: Add string length check before comparison
     if (tx->payload.entry_function.module_id.address[ADDRESS_LEN - 1] == 0x01 &&
         memcmp(tx->payload.entry_function.module_id.name.bytes, "aptos_account", 13) == 0 &&
         memcmp(tx->payload.entry_function.function_name.bytes, "transfer", 8) == 0) {
         return FUNC_APTOS_ACCOUNT_TRANSFER;
     }
 
+    // TODO: Add string length check before comparison
     if (tx->payload.entry_function.module_id.address[ADDRESS_LEN - 1] == 0x01 &&
         memcmp(tx->payload.entry_function.module_id.name.bytes, "coin", 4) == 0 &&
         memcmp(tx->payload.entry_function.function_name.bytes, "transfer", 8) == 0) {
