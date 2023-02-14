@@ -95,6 +95,7 @@ parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx) {
 }
 
 parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx) {
+    parser_status_e status = TX_VARIANT_UNDEFINED_ERROR;
     if (buf->offset != 0) {
         return TX_VARIANT_READ_ERROR;
     }
@@ -113,6 +114,8 @@ parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx) {
             tx->tx_variant = TX_RAW;
             return PARSING_OK;
         }
+    } else {
+        status = HASHED_PREFIX_READ_ERROR;
     }
 
     if (transaction_utils_check_encoding(buf->ptr, buf->size)) {
@@ -121,7 +124,7 @@ parser_status_e tx_variant_deserialize(buffer_t *buf, transaction_t *tx) {
         return PARSING_OK;
     }
 
-    return TX_VARIANT_UNDEFINED_ERROR;
+    return status;
 }
 
 parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t *tx) {
