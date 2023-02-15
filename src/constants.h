@@ -21,9 +21,16 @@
 #define MAX_APPNAME_LEN 64
 
 /**
+ * Maximum transaction packets.
+ */
+#ifndef MAX_TRANSACTION_PACKETS
+#define MAX_TRANSACTION_PACKETS 2
+#endif
+
+/**
  * Maximum transaction length (bytes).
  */
-#define MAX_TRANSACTION_LEN 510
+#define MAX_TRANSACTION_LEN (MAX_TRANSACTION_PACKETS * 255)
 
 /**
  * Signature length (bytes).

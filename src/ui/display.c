@@ -42,7 +42,7 @@ static char g_gas_fee[30];
 static char g_bip32_path[60];
 static char g_address[67];
 static char g_function[50];
-static char g_struct[250];
+static char g_struct[64];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
@@ -139,7 +139,7 @@ UX_STEP_NOCB(ux_display_msg_step,
              bnnn_paging,
              {
                  .title = "Message",
-                 .text = g_struct,
+                 .text = (const char *) G_context.tx_info.raw_tx,
              });
 // Step with title/text for transaction type
 UX_STEP_NOCB(ux_display_tx_type_step,
@@ -310,14 +310,6 @@ int ui_display_transaction() {
 }
 
 int ui_display_message() {
-    memset(g_struct, 0, sizeof(g_struct));
-    snprintf(g_struct,
-             sizeof(g_struct),
-             "%.*s",
-             G_context.tx_info.raw_tx_len,
-             G_context.tx_info.raw_tx);
-    PRINTF("Message: %s\n", g_struct);
-
     ux_flow_init(0, ux_display_message_flow, NULL);
 
     return 0;
