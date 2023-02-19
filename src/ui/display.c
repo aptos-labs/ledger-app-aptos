@@ -36,13 +36,15 @@
 #include "../common/bip32.h"
 #include "../common/format.h"
 
+#define DOTS "[...]"
+
 static action_validate_cb g_validate_callback;
 static char g_amount[30];
 static char g_gas_fee[30];
 static char g_bip32_path[60];
 static char g_address[67];
 static char g_function[50];
-static char g_struct[64];
+static char g_struct[120];
 
 // Step with icon and text
 UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
@@ -141,6 +143,13 @@ UX_STEP_NOCB(ux_display_msg_step,
                  .title = "Message",
                  .text = (const char *) G_context.tx_info.raw_tx,
              });
+// Step with title/text for message in short form
+UX_STEP_NOCB(ux_display_short_msg_step,
+             bnnn_paging,
+             {
+                 .title = "Message",
+                 .text = g_struct,
+             });
 // Step with title/text for transaction type
 UX_STEP_NOCB(ux_display_tx_type_step,
              bnnn_paging,
@@ -205,6 +214,17 @@ UX_FLOW(ux_display_tx_default_flow,
 UX_FLOW(ux_display_message_flow,
         &ux_display_review_msg_step,
         &ux_display_msg_step,
+        &ux_display_approve_step,
+        &ux_display_reject_step);
+
+// FLOW to display message information in short form:
+// #1 screen : eye icon + "Review Message"
+// #2 screen : display message
+// #3 screen : approve button
+// #4 screen : reject button
+UX_FLOW(ux_display_short_message_flow,
+        &ux_display_review_msg_step,
+        &ux_display_short_msg_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
@@ -310,7 +330,20 @@ int ui_display_transaction() {
 }
 
 int ui_display_message() {
-    ux_flow_init(0, ux_display_message_flow, NULL);
+    if (N_storage.settings.show_full_message) {
+        ux_flow_init(0, ux_display_message_flow, NULL);
+    } else {
+        memset(g_struct, 0, sizeof(g_struct));
+        bool short_enough = G_context.tx_info.raw_tx_len < sizeof(g_struct);
+        snprintf(g_struct,
+                 sizeof(g_struct),
+                 short_enough ? "%.*s" : "%.*s" DOTS,
+                 short_enough ? G_context.tx_info.raw_tx_len : sizeof(g_struct) - sizeof(DOTS),
+                 G_context.tx_info.raw_tx);
+        PRINTF("Message: %s\n", g_struct);
+
+        ux_flow_init(0, ux_display_short_message_flow, NULL);
+    }
 
     return 0;
 }

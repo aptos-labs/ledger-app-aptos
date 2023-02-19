@@ -27,3 +27,9 @@ extern bolos_ux_params_t G_ux_params;
  * Global context for user requests.
  */
 extern global_ctx_t G_context;
+
+/**
+ * Global NVM app storage.
+ */
+extern const app_storage_t N_app_storage;
+#define N_storage (*(volatile app_storage_t*) PIC(&N_app_storage))
