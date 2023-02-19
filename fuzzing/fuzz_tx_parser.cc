@@ -21,7 +21,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
     transaction_init(&tx);
     status = transaction_deserialize(&buf, &tx);
 
-    if (status == PARSING_OK && tx.tx_variant == TX_RAW) {
+    if (status == PARSING_OK && tx.tx_variant == TX_RAW &&
+        tx.payload_variant == PAYLOAD_ENTRY_FUNCTION) {
         printf("\nTransaction size: %lu\n", size);
         printf("chain_id: %d\n", tx.chain_id);
         printf("sequence: %lu\n", tx.sequence);
@@ -31,6 +32,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
         format_hex(tx.sender, ADDRESS_LEN, sender, sizeof(sender));
         printf("sender: %s\n", sender);
         printf("payload_variant: %d\n", tx.payload_variant);
+        printf("entry_function.known_type: %d\n", tx.payload.entry_function.known_type);
     }
 
     return 0;

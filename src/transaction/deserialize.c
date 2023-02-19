@@ -324,17 +324,15 @@ entry_function_known_type_t determine_function_type(transaction_t *tx) {
         return FUNC_UNKNOWN;
     }
 
-    // TODO: Add string length check before comparison
     if (tx->payload.entry_function.module_id.address[ADDRESS_LEN - 1] == 0x01 &&
-        memcmp(tx->payload.entry_function.module_id.name.bytes, "aptos_account", 13) == 0 &&
-        memcmp(tx->payload.entry_function.function_name.bytes, "transfer", 8) == 0) {
+        bcs_cmp_bytes(&tx->payload.entry_function.module_id.name, "aptos_account", 13) &&
+        bcs_cmp_bytes(&tx->payload.entry_function.function_name, "transfer", 8)) {
         return FUNC_APTOS_ACCOUNT_TRANSFER;
     }
 
-    // TODO: Add string length check before comparison
     if (tx->payload.entry_function.module_id.address[ADDRESS_LEN - 1] == 0x01 &&
-        memcmp(tx->payload.entry_function.module_id.name.bytes, "coin", 4) == 0 &&
-        memcmp(tx->payload.entry_function.function_name.bytes, "transfer", 8) == 0) {
+        bcs_cmp_bytes(&tx->payload.entry_function.module_id.name, "coin", 4) &&
+        bcs_cmp_bytes(&tx->payload.entry_function.function_name, "transfer", 8)) {
         return FUNC_COIN_TRANSFER;
     }
 
