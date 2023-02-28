@@ -115,6 +115,7 @@ void nvm_app_storage_init() {
     if (N_storage.initialized != 0x01) {
         app_storage_t storage;
         storage.settings.show_full_message = 0x00;
+        storage.settings.allow_blind_signing = 0x00;
         storage.initialized = 0x01;
         nvm_write((void *) &N_storage, (void *) &storage, sizeof(app_storage_t));
     }

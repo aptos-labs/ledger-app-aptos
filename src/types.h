@@ -91,6 +91,7 @@ typedef struct {
 
 typedef struct {
     uint8_t show_full_message;
+    uint8_t allow_blind_signing;
 } app_settings;
 
 typedef struct {

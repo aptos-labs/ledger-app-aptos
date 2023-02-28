@@ -46,22 +46,23 @@ static char g_address[67];
 static char g_function[50];
 static char g_struct[120];
 
+#ifdef TARGET_NANOS
+UX_STEP_NOCB(ux_display_blind_sign_banner_step,
+             bnnn_paging,
+             {
+                 .title = "Error",
+                 .text = "Blind signing must be enabled in Settings",
+             });
+#else
 // Step with icon and text
-UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
-// Step with title/text for BIP32 path
-UX_STEP_NOCB(ux_display_path_step,
-             bnnn_paging,
+UX_STEP_NOCB(ux_display_blind_sign_banner_step,
+             pnn,
              {
-                 .title = "Path",
-                 .text = g_bip32_path,
+                 &C_icon_warning,
+                 "Blind signing must be",
+                 "enabled in Settings",
              });
-// Step with title/text for address
-UX_STEP_NOCB(ux_display_address_step,
-             bnnn_paging,
-             {
-                 .title = "Address",
-                 .text = g_address,
-             });
+#endif
 // Step with approve button
 UX_STEP_CB(ux_display_approve_step,
            pb,
@@ -78,6 +79,42 @@ UX_STEP_CB(ux_display_reject_step,
                &C_icon_crossmark,
                "Reject",
            });
+
+// FLOW to display blind signing banner:
+// #1 screen : warning icon + "Blind signing must be enabled in Settings"
+// #2 screen : reject button
+UX_FLOW(ux_display_blind_sign_banner_flow,
+        &ux_display_blind_sign_banner_step,
+        &ux_display_reject_step);
+
+static void ui_flow_display(const ux_flow_step_t *const *steps) {
+    ux_flow_init(0, steps, NULL);
+}
+
+static void ui_flow_verified_display(const ux_flow_step_t *const *steps) {
+    if (N_storage.settings.allow_blind_signing) {
+        ui_flow_display(steps);
+    } else {
+        ui_flow_display(ux_display_blind_sign_banner_flow);
+    }
+}
+
+// Step with icon and text
+UX_STEP_NOCB(ux_display_confirm_addr_step, pn, {&C_icon_eye, "Confirm Address"});
+// Step with title/text for BIP32 path
+UX_STEP_NOCB(ux_display_path_step,
+             bnnn_paging,
+             {
+                 .title = "Path",
+                 .text = g_bip32_path,
+             });
+// Step with title/text for address
+UX_STEP_NOCB(ux_display_address_step,
+             bnnn_paging,
+             {
+                 .title = "Address",
+                 .text = g_address,
+             });
 
 // FLOW to display address and BIP32 path:
 // #1 screen: eye icon + "Confirm Address"
@@ -115,7 +152,7 @@ int ui_display_address() {
 
     g_validate_callback = &ui_action_validate_pubkey;
 
-    ux_flow_init(0, ux_display_pubkey_flow, NULL);
+    ui_flow_display(ux_display_pubkey_flow);
 
     return 0;
 }
@@ -324,14 +361,14 @@ int ui_display_transaction() {
         snprintf(g_struct, sizeof(g_struct), "unknown data type");
     }
 
-    ux_flow_init(0, ux_display_tx_default_flow, NULL);
+    ui_flow_verified_display(ux_display_tx_default_flow);
 
     return 0;
 }
 
 int ui_display_message() {
     if (N_storage.settings.show_full_message) {
-        ux_flow_init(0, ux_display_message_flow, NULL);
+        ui_flow_display(ux_display_message_flow);
     } else {
         memset(g_struct, 0, sizeof(g_struct));
         bool short_enough = G_context.tx_info.raw_tx_len < sizeof(g_struct);
@@ -342,7 +379,7 @@ int ui_display_message() {
                  G_context.tx_info.raw_tx);
         PRINTF("Message: %s\n", g_struct);
 
-        ux_flow_init(0, ux_display_short_message_flow, NULL);
+        ui_flow_display(ux_display_short_message_flow);
     }
 
     return 0;
@@ -369,7 +406,7 @@ int ui_display_entry_function() {
         case FUNC_COIN_TRANSFER:
             return ui_display_tx_coin_transfer();
         default:
-            ux_flow_init(0, ux_display_tx_entry_function_flow, NULL);
+            ui_flow_verified_display(ux_display_tx_entry_function_flow);
             break;
     }
     return 0;
@@ -396,7 +433,7 @@ int ui_display_tx_aptos_account_transfer() {
     snprintf(g_amount, sizeof(g_amount), "APT %.*s", sizeof(amount), amount);
     PRINTF("Amount: %s\n", g_amount);
 
-    ux_flow_init(0, ux_display_tx_aptos_account_transfer_flow, NULL);
+    ui_flow_display(ux_display_tx_aptos_account_transfer_flow);
 
     return 0;
 }
@@ -429,7 +466,7 @@ int ui_display_tx_coin_transfer() {
     }
     PRINTF("Amount: %s\n", g_amount);
 
-    ux_flow_init(0, ux_display_tx_coin_transfer_flow, NULL);
+    ui_flow_display(ux_display_tx_coin_transfer_flow);
 
     return 0;
 }
