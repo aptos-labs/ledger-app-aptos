@@ -326,36 +326,41 @@ int ui_display_transaction() {
 
     transaction_t *transaction = &G_context.tx_info.transaction;
 
-    uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
-    memset(g_gas_fee, 0, sizeof(g_gas_fee));
-    char gas_fee[30] = {0};
-    if (!format_fpu64(gas_fee, sizeof(gas_fee), gas_fee_value, 8)) {
-        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);  // TODO: SW_DISPLAY_GAS_FEE_FAIL
-    }
-    snprintf(g_gas_fee, sizeof(g_gas_fee), "APT %.*s", sizeof(gas_fee), gas_fee);
-    PRINTF("Gas Fee: %s\n", g_gas_fee);
-
-    if (transaction->tx_variant == TX_RAW) {
-        switch (transaction->payload_variant) {
-            case PAYLOAD_ENTRY_FUNCTION:
-                return ui_display_entry_function();
-            case PAYLOAD_SCRIPT:
-                memset(g_struct, 0, sizeof(g_struct));
-                snprintf(g_struct, sizeof(g_struct), "%s [payload = SCRIPT]", RAW_TRANSACTION_SALT);
-                break;
-            default:
-                memset(g_struct, 0, sizeof(g_struct));
-                snprintf(g_struct,
-                         sizeof(g_struct),
-                         "%s [payload = UNKNOWN]",
-                         RAW_TRANSACTION_SALT);
-                break;
-        }
-    } else if (transaction->tx_variant == TX_MESSAGE) {
+    if (transaction->tx_variant == TX_MESSAGE) {
         return ui_display_message();
-    } else if (transaction->tx_variant == TX_RAW_WITH_DATA) {
-        memset(g_struct, 0, sizeof(g_struct));
-        snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
+    } else if (transaction->tx_variant != TX_UNDEFINED) {
+        uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
+        memset(g_gas_fee, 0, sizeof(g_gas_fee));
+        char gas_fee[30] = {0};
+        if (!format_fpu64(gas_fee, sizeof(gas_fee), gas_fee_value, 8)) {
+            return io_send_sw(SW_DISPLAY_GAS_FEE_FAIL);
+        }
+        snprintf(g_gas_fee, sizeof(g_gas_fee), "APT %.*s", sizeof(gas_fee), gas_fee);
+        PRINTF("Gas Fee: %s\n", g_gas_fee);
+
+        if (transaction->tx_variant == TX_RAW) {
+            switch (transaction->payload_variant) {
+                case PAYLOAD_ENTRY_FUNCTION:
+                    return ui_display_entry_function();
+                case PAYLOAD_SCRIPT:
+                    memset(g_struct, 0, sizeof(g_struct));
+                    snprintf(g_struct,
+                             sizeof(g_struct),
+                             "%s [payload = SCRIPT]",
+                             RAW_TRANSACTION_SALT);
+                    break;
+                default:
+                    memset(g_struct, 0, sizeof(g_struct));
+                    snprintf(g_struct,
+                             sizeof(g_struct),
+                             "%s [payload = UNKNOWN]",
+                             RAW_TRANSACTION_SALT);
+                    break;
+            }
+        } else if (transaction->tx_variant == TX_RAW_WITH_DATA) {
+            memset(g_struct, 0, sizeof(g_struct));
+            snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
+        }
     } else {
         memset(g_struct, 0, sizeof(g_struct));
         snprintf(g_struct, sizeof(g_struct), "unknown data type");

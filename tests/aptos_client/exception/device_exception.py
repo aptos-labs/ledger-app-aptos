@@ -19,7 +19,8 @@ class DeviceException(Exception):  # pylint: disable=too-few-public-methods
         0xB005: TxParsingFailError,
         0xB006: TxHashFail,
         0xB007: BadStateError,
-        0xB008: SignatureFailError
+        0xB008: SignatureFailError,
+        0xB009: DisplayGasFeeFailError,
     }
 
     def __new__(cls,

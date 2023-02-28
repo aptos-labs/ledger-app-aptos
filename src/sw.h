@@ -60,3 +60,7 @@
  * Status word for signature fail.
  */
 #define SW_SIGNATURE_FAIL 0xB008
+/**
+ * Status word for fail to display gas fee.
+ */
+#define SW_DISPLAY_GAS_FEE_FAIL 0xB009

@@ -56,3 +56,7 @@ class BadStateError(Exception):
 
 class SignatureFailError(Exception):
     pass
+
+
+class DisplayGasFeeFailError(Exception):
+    pass
