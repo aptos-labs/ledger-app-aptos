@@ -22,6 +22,7 @@
 #include "../globals.h"
 #include "menu.h"
 #include "settings.h"
+#include "display.h"
 
 UX_STEP_NOCB(ux_menu_ready_step, pnn, {&C_aptos_logo, "Aptos", "is ready"});
 UX_STEP_CB(ux_menu_settings_step, pb, ui_menu_settings(), {&C_icon_coggle, "Settings"});
@@ -45,7 +46,7 @@ void ui_menu_main() {
         ux_stack_push();
     }
 
-    ux_flow_init(0, ux_menu_main_flow, NULL);
+    ui_flow_display(ux_menu_main_flow);
 }
 
 void ui_menu_settings() {
@@ -67,5 +68,5 @@ UX_FLOW(ux_menu_about_flow,
         FLOW_LOOP);
 
 void ui_menu_about() {
-    ux_flow_init(0, ux_menu_about_flow, NULL);
+    ui_flow_display(ux_menu_about_flow);
 }

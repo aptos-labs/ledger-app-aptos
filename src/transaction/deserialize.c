@@ -23,6 +23,10 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
             return tx_raw_deserialize(buf, tx);
         case TX_RAW_WITH_DATA:
         case TX_MESSAGE:
+            // To make sure the message is a null-terminated string
+            if (buf->size == MAX_TRANSACTION_LEN && buf->ptr[MAX_TRANSACTION_LEN - 1] != 0) {
+                return WRONG_LENGTH_ERROR;
+            }
         default:
             break;
     }

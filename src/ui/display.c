@@ -46,6 +46,15 @@ static char g_address[67];
 static char g_function[50];
 static char g_struct[120];
 
+static size_t count_leading_zeros(const uint8_t *src, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        if (src[i] != 0) {
+            return i;
+        }
+    }
+    return len;
+}
+
 #ifdef TARGET_NANOS
 UX_STEP_NOCB(ux_display_blind_sign_banner_step,
              bnnn_paging,
@@ -87,11 +96,11 @@ UX_FLOW(ux_display_blind_sign_banner_flow,
         &ux_display_blind_sign_banner_step,
         &ux_display_reject_step);
 
-static void ui_flow_display(const ux_flow_step_t *const *steps) {
+void ui_flow_display(const ux_flow_step_t *const *steps) {
     ux_flow_init(0, steps, NULL);
 }
 
-static void ui_flow_verified_display(const ux_flow_step_t *const *steps) {
+void ui_flow_verified_display(const ux_flow_step_t *const *steps) {
     if (N_storage.settings.allow_blind_signing) {
         ui_flow_display(steps);
     } else {
@@ -384,7 +393,11 @@ int ui_display_message() {
                  G_context.tx_info.raw_tx);
         PRINTF("Message: %s\n", g_struct);
 
-        ui_flow_display(ux_display_short_message_flow);
+        if (short_enough) {
+            ui_flow_display(ux_display_short_message_flow);
+        } else {
+            ui_flow_verified_display(ux_display_short_message_flow);
+        }
     }
 
     return 0;
@@ -393,12 +406,14 @@ int ui_display_message() {
 int ui_display_entry_function() {
     entry_function_payload_t *function = &G_context.tx_info.transaction.payload.entry_function;
 
+    // Be sure to display at least 1 byte, even if it is zero
+    size_t leading_zeros = count_leading_zeros(function->module_id.address, ADDRESS_LEN - 1);
     memset(g_function, 0, sizeof(g_function));
     snprintf(g_function,
              sizeof(g_function),
              "0x%.*H::%.*s::%.*s",
-             UI_MODULE_ADDRESS_LEN,
-             function->module_id.address + ADDRESS_LEN - UI_MODULE_ADDRESS_LEN,
+             ADDRESS_LEN - leading_zeros,
+             function->module_id.address + leading_zeros,
              function->module_id.name.len,
              function->module_id.name.bytes,
              function->function_name.len,
@@ -447,14 +462,14 @@ int ui_display_tx_coin_transfer() {
     agrs_coin_trasfer_t *transfer =
         &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
 
+    // Be sure to display at least 1 byte, even if it is zero
+    size_t leading_zeros = count_leading_zeros(transfer->ty_coin.address, ADDRESS_LEN - 1);
     memset(g_struct, 0, sizeof(g_struct));
     snprintf(g_struct,
              sizeof(g_struct),
-             "0x%.*H..%.*H::%.*s::%.*s",
-             UI_MODULE_ADDRESS_LEN,
-             transfer->ty_coin.address,
-             UI_MODULE_ADDRESS_LEN,
-             transfer->ty_coin.address + ADDRESS_LEN - UI_MODULE_ADDRESS_LEN,
+             "0x%.*H::%.*s::%.*s",
+             ADDRESS_LEN - leading_zeros,
+             transfer->ty_coin.address + leading_zeros,
              transfer->ty_coin.module_name.len,
              transfer->ty_coin.module_name.bytes,
              transfer->ty_coin.name.len,

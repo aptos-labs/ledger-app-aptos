@@ -1,8 +1,11 @@
 #pragma once
 
 #include <stdbool.h>  // bool
+#include "ux.h"
 
-#define UI_MODULE_ADDRESS_LEN 1
+void ui_flow_display(const ux_flow_step_t *const *steps);
+
+void ui_flow_verified_display(const ux_flow_step_t *const *steps);
 
 /**
  * Callback to reuse action with approve/reject in step FLOW.
