@@ -49,9 +49,9 @@
  */
 #define SW_TX_PARSING_FAIL 0xB005
 /**
- * Status word for fail of transaction hash.
+ * Status word for fail of getting public key.
  */
-#define SW_TX_HASH_FAIL 0xB006
+#define SW_GET_PUB_KEY_FAIL 0xB006
 /**
  * Status word for bad state.
  */

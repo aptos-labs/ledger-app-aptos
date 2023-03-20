@@ -46,7 +46,7 @@ class TxParsingFailError(Exception):
     pass
 
 
-class TxHashFail(Exception):
+class TxGetPubKeyFail(Exception):
     pass
 
 
