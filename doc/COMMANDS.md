@@ -57,7 +57,7 @@
 
 | CLA  | INS  | P1                      | P2                           | Lc     | CData                                                                                        |
 | ---- | ---- | ----------------------- | ---------------------------- | ------ | -------------------------------------------------------------------------------------------- |
-| 0x5B | 0x06 | 0x00-0x03 (chunk index) | 0x00 (more) <br> 0x80 (last) | 1 + 4n | `len(bip32_path) (1)` \|\|<br> `bip32_path{1} (4)` \|\|<br>`...` \|\|<br>`bip32_path{n} (4)` |
+| 0x5B | 0x06 | 0x00-0x03 (chunk index) | 0x80 (more) <br> 0x00 (last) | 1 + 4n | `len(bip32_path) (1)` \|\|<br> `bip32_path{1} (4)` \|\|<br>`...` \|\|<br>`bip32_path{n} (4)` |
 
 ### Response
 
@@ -83,4 +83,5 @@
 | 0xB006 | `SW_TX_HASH_FAIL`            | Failed to get public key                    |
 | 0xB007 | `SW_BAD_STATE`               | Security issue with bad state               |
 | 0xB008 | `SW_SIGNATURE_FAIL`          | Signature of raw transaction failed         |
+| 0xB009 | `SW_DISPLAY_GAS_FEE_FAIL`    | Failed to display gas fee                   |
 | 0x9000 | `OK`                         | Success                                     |
