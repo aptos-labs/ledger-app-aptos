@@ -55,6 +55,20 @@ static size_t count_leading_zeros(const uint8_t *src, size_t len) {
     return len;
 }
 
+static bool is_str_interrupted(const char *src, size_t len) {
+    bool interrupted = false;
+    for (size_t i = 0; i < len; i++) {
+        if (!interrupted && src[i] == 0) {
+            interrupted = true;
+            continue;
+        }
+        if (interrupted && src[i] != 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 #ifdef TARGET_NANOS
 UX_STEP_NOCB(ux_display_blind_sign_banner_step,
              bnnn_paging,
@@ -382,7 +396,11 @@ int ui_display_transaction() {
 
 int ui_display_message() {
     if (N_storage.settings.show_full_message) {
-        ui_flow_display(ux_display_message_flow);
+        if (is_str_interrupted(G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len)) {
+            ui_flow_verified_display(ux_display_message_flow);
+        } else {
+            ui_flow_display(ux_display_message_flow);
+        }
     } else {
         memset(g_struct, 0, sizeof(g_struct));
         bool short_enough = G_context.tx_info.raw_tx_len < sizeof(g_struct);
@@ -394,7 +412,11 @@ int ui_display_message() {
         PRINTF("Message: %s\n", g_struct);
 
         if (short_enough) {
-            ui_flow_display(ux_display_short_message_flow);
+            if (is_str_interrupted(g_struct, sizeof(g_struct))) {
+                ui_flow_verified_display(ux_display_short_message_flow);
+            } else {
+                ui_flow_display(ux_display_short_message_flow);
+            }
         } else {
             ui_flow_verified_display(ux_display_short_message_flow);
         }
