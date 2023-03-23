@@ -36,13 +36,13 @@
 int handler_get_public_key(buffer_t *cdata, bool display) {
     explicit_bzero(&G_context, sizeof(G_context));
     G_context.req_type = CONFIRM_ADDRESS;
-    G_context.state = STATE_NONE;
 
     cx_ecfp_private_key_t private_key = {0};
     cx_ecfp_public_key_t public_key = {0};
 
     if (!buffer_read_u8(cdata, &G_context.bip32_path_len) ||
         !buffer_read_bip32_path(cdata, G_context.bip32_path, (size_t) G_context.bip32_path_len)) {
+        G_context.req_type = REQUEST_UNDEFINED;
         return io_send_sw(SW_WRONG_DATA_LENGTH);
     }
 
@@ -54,6 +54,7 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
     if (error != 0) {
         explicit_bzero(&private_key, sizeof(private_key));
         PRINTF("Error code: %x.\n", error);
+        G_context.req_type = REQUEST_UNDEFINED;
         return io_send_sw(SW_GET_PUB_KEY_FAIL);
     }
     // generate corresponding public key
@@ -63,8 +64,11 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
     explicit_bzero(&private_key, sizeof(private_key));
 
     if (display) {
-        return ui_display_address();
+        int ui_status = ui_display_address();
+        G_context.req_type = REQUEST_UNDEFINED;  // all the work is done, reset the context
+        return ui_status;
     }
 
+    G_context.req_type = REQUEST_UNDEFINED;  // all the work is done, reset the context
     return helper_send_response_pubkey();
 }

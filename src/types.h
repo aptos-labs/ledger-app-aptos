@@ -51,6 +51,7 @@ typedef enum {
  * Enumeration with user request type.
  */
 typedef enum {
+    REQUEST_UNDEFINED,   /// undefined value for the request
     CONFIRM_ADDRESS,     /// confirm address derived from public key
     CONFIRM_TRANSACTION  /// confirm transaction information
 } request_type_e;

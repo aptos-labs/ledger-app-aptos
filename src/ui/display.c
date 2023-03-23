@@ -153,8 +153,7 @@ UX_FLOW(ux_display_pubkey_flow,
         &ux_display_reject_step);
 
 int ui_display_address() {
-    if (G_context.req_type != CONFIRM_ADDRESS || G_context.state != STATE_NONE) {
-        G_context.state = STATE_NONE;
+    if (G_context.req_type != CONFIRM_ADDRESS) {
         return io_send_sw(SW_BAD_STATE);
     }
 
@@ -396,7 +395,8 @@ int ui_display_transaction() {
 
 int ui_display_message() {
     if (N_storage.settings.show_full_message) {
-        if (is_str_interrupted(G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len)) {
+        if (is_str_interrupted((const char *) G_context.tx_info.raw_tx,
+                               G_context.tx_info.raw_tx_len)) {
             ui_flow_verified_display(ux_display_message_flow);
         } else {
             ui_flow_display(ux_display_message_flow);
