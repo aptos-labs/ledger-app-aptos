@@ -155,3 +155,13 @@ int format_hex(const uint8_t *in, size_t in_len, char *out, size_t out_len) {
 
     return written + 1;
 }
+
+int format_prefixed_hex(const uint8_t *in, size_t in_len, char *out, size_t out_len) {
+    const char prefix[] = "0x";
+    const size_t prefix_len = sizeof(prefix) - 1;
+
+    if (out_len < sizeof(prefix)) {
+        return -1;
+    }
+    return format_hex(in, in_len, strcpy(out, prefix) + prefix_len, out_len - prefix_len);
+}

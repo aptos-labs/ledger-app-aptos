@@ -43,7 +43,7 @@ static char g_amount[30];
 static char g_gas_fee[30];
 static char g_bip32_path[60];
 static char g_address[67];
-static char g_function[50];
+static char g_function[120];
 static char g_struct[120];
 
 static size_t count_leading_zeros(const uint8_t *src, size_t len) {
@@ -170,7 +170,9 @@ int ui_display_address() {
     if (!address_from_pubkey(G_context.pk_info.raw_public_key, address, sizeof(address))) {
         return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
     }
-    snprintf(g_address, sizeof(g_address), "0x%.*H", sizeof(address), address);
+    if (0 > format_prefixed_hex(address, sizeof(address), g_address, sizeof(g_address))) {
+        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    }
 
     g_validate_callback = &ui_action_validate_pubkey;
 
@@ -427,15 +429,21 @@ int ui_display_message() {
 
 int ui_display_entry_function() {
     entry_function_payload_t *function = &G_context.tx_info.transaction.payload.entry_function;
+    char function_module_id_address_hex[67] = {0};
 
     // Be sure to display at least 1 byte, even if it is zero
     size_t leading_zeros = count_leading_zeros(function->module_id.address, ADDRESS_LEN - 1);
+    if (0 > format_prefixed_hex(function->module_id.address + leading_zeros,
+                                ADDRESS_LEN - leading_zeros,
+                                function_module_id_address_hex,
+                                sizeof(function_module_id_address_hex))) {
+        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    }
     memset(g_function, 0, sizeof(g_function));
     snprintf(g_function,
              sizeof(g_function),
-             "0x%.*H::%.*s::%.*s",
-             ADDRESS_LEN - leading_zeros,
-             function->module_id.address + leading_zeros,
+             "%s::%.*s::%.*s",
+             function_module_id_address_hex,
              function->module_id.name.len,
              function->module_id.name.bytes,
              function->function_name.len,
@@ -464,7 +472,9 @@ int ui_display_tx_aptos_account_transfer() {
     PRINTF("Tx Type: %s\n", g_struct);
 
     memset(g_address, 0, sizeof(g_address));
-    snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);
+    if (0 > format_prefixed_hex(transfer->receiver, ADDRESS_LEN, g_address, sizeof(g_address))) {
+        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    }
     PRINTF("Receiver: %s\n", g_address);
 
     memset(g_amount, 0, sizeof(g_amount));
@@ -483,15 +493,21 @@ int ui_display_tx_aptos_account_transfer() {
 int ui_display_tx_coin_transfer() {
     agrs_coin_trasfer_t *transfer =
         &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
+    char transfer_ty_coin_address_hex[67] = {0};
 
     // Be sure to display at least 1 byte, even if it is zero
     size_t leading_zeros = count_leading_zeros(transfer->ty_coin.address, ADDRESS_LEN - 1);
+    if (0 > format_prefixed_hex(transfer->ty_coin.address + leading_zeros,
+                                ADDRESS_LEN - leading_zeros,
+                                transfer_ty_coin_address_hex,
+                                sizeof(transfer_ty_coin_address_hex))) {
+        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    }
     memset(g_struct, 0, sizeof(g_struct));
     snprintf(g_struct,
              sizeof(g_struct),
-             "0x%.*H::%.*s::%.*s",
-             ADDRESS_LEN - leading_zeros,
-             transfer->ty_coin.address + leading_zeros,
+             "%s::%.*s::%.*s",
+             transfer_ty_coin_address_hex,
              transfer->ty_coin.module_name.len,
              transfer->ty_coin.module_name.bytes,
              transfer->ty_coin.name.len,
@@ -499,7 +515,9 @@ int ui_display_tx_coin_transfer() {
     PRINTF("Coin Type: %s\n", g_struct);
 
     memset(g_address, 0, sizeof(g_address));
-    snprintf(g_address, sizeof(g_address), "0x%.*H", ADDRESS_LEN, transfer->receiver);
+    if (0 > format_prefixed_hex(transfer->receiver, ADDRESS_LEN, g_address, sizeof(g_address))) {
+        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    }
     PRINTF("Receiver: %s\n", g_address);
 
     memset(g_amount, 0, sizeof(g_amount));
