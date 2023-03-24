@@ -55,9 +55,21 @@
 
 ### Command
 
-| CLA  | INS  | P1                      | P2                           | Lc     | CData                                                                                        |
-| ---- | ---- | ----------------------- | ---------------------------- | ------ | -------------------------------------------------------------------------------------------- |
-| 0x5B | 0x06 | 0x00-0x03 (chunk index) | 0x80 (more) <br> 0x00 (last) | 1 + 4n | `len(bip32_path) (1)` \|\|<br> `bip32_path{1} (4)` \|\|<br>`...` \|\|<br>`bip32_path{n} (4)` |
+_Note:_ The maximum number of chunks depends on the maximum available RAM on each device and is equal to N.
+
+| Device         | N    |
+| -------------- | ---- |
+| Ledger Nano S  | 0x07 |
+| Ledger Nano S+ | 0x6B |
+| Ledger Nano X  | 0x69 |
+
+| CLA  | INS  | P1   | P2          | Lc     | CData                                                                                        |
+| ---- | ---- | ---- | ----------- | ------ | -------------------------------------------------------------------------------------------- |
+| 0x5B | 0x06 | 0x00 | 0x80 (more) | 1 + 4n | `len(bip32_path) (1)` \|\|<br> `bip32_path{1} (4)` \|\|<br>`...` \|\|<br>`bip32_path{n} (4)` |
+
+| CLA  | INS  | P1                   | P2                           | Lc  | CData                       |
+| ---- | ---- | -------------------- | ---------------------------- | --- | --------------------------- |
+| 0x5B | 0x06 | 0x01-N (chunk index) | 0x80 (more) <br> 0x00 (last) | var | `serialized_tx_chunk (var)` |
 
 ### Response
 

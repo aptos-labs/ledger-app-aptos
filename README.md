@@ -193,7 +193,7 @@ https://github.com/LedgerHQ/speculos/blob/master/docs/index.md
 
 ## Documentation
 
-High level documentation such as [APDU](doc/APDU.md) and [commands](doc/COMMANDS.md) are included in developer documentation which can be generated with [doxygen](https://www.doxygen.nl)
+High level documentation such as [APDU](doc/APDU.md), [commands](doc/COMMANDS.md) and [transaction serialization](doc/TRANSACTION.md) are included in developer documentation which can be generated with [doxygen](https://www.doxygen.nl)
 
 ```shell
 $ doxygen .doxygen/Doxyfile
