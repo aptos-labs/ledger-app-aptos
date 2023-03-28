@@ -188,7 +188,7 @@ $ ./speculos.py app-aptos/bin/app.elf --model nanosp --display headless --button
 # ... and open a browser on http://127.0.0.1:5000
 ```
 
-_**NOTE: For more information see the Speculos GitHub repositor:**_
+_**NOTE: For more information see the Speculos GitHub repository:**_
 https://github.com/LedgerHQ/speculos/blob/master/docs/index.md
 
 ## Documentation
