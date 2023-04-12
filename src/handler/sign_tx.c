@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
+ *   Ledger App Aptos.
  *   (c) 2020 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,44 +33,56 @@
 #include "../transaction/deserialize.h"
 
 int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
+    static uint8_t prev_chunk = 0;  // no need to burden the global context
+
     if (chunk == 0) {  // first APDU, parse BIP32 path
         explicit_bzero(&G_context, sizeof(G_context));
         G_context.req_type = CONFIRM_TRANSACTION;
         G_context.state = STATE_NONE;
+        prev_chunk = chunk;
 
         if (!buffer_read_u8(cdata, &G_context.bip32_path_len) ||
             !buffer_read_bip32_path(cdata,
                                     G_context.bip32_path,
                                     (size_t) G_context.bip32_path_len)) {
+            // unable to recover from this error, reset the context
+            G_context.req_type = REQUEST_UNDEFINED;
             return io_send_sw(SW_WRONG_DATA_LENGTH);
         }
 
         return io_send_sw(SW_OK);
     } else {  // parse transaction
         if (G_context.req_type != CONFIRM_TRANSACTION) {
+            // there may be data in the global context's union, reset the context anyway
+            G_context.req_type = REQUEST_UNDEFINED;
             return io_send_sw(SW_BAD_STATE);
         }
+        if (G_context.state == STATE_PARSED || G_context.state == STATE_APPROVED) {
+            // should not get here, double check, context should already be reset
+            return io_send_sw(SW_BAD_STATE);
+        }
+        if (chunk != prev_chunk + 1) {
+            // give a chance to resend a chunk with the correct sequence number
+            return io_send_sw(SW_WRONG_P1P2);
+        }
+        prev_chunk = chunk;
 
-        if (more) {  // more APDUs with transaction part
-            if (G_context.tx_info.raw_tx_len + cdata->size > MAX_TRANSACTION_LEN ||  //
-                !buffer_move(cdata,
-                             G_context.tx_info.raw_tx + G_context.tx_info.raw_tx_len,
-                             cdata->size)) {
-                return io_send_sw(SW_WRONG_TX_LENGTH);
-            }
+        if (G_context.tx_info.raw_tx_len + cdata->size > sizeof(G_context.tx_info.raw_tx) ||
+            !buffer_move(cdata,
+                         G_context.tx_info.raw_tx + G_context.tx_info.raw_tx_len,
+                         cdata->size)) {
+            // copying did not happen, allow the smaller chunk to be resent
+            return io_send_sw(SW_WRONG_TX_LENGTH);
+        }
+        G_context.tx_info.raw_tx_len += cdata->size;
 
-            G_context.tx_info.raw_tx_len += cdata->size;
-
+        if (more) {
+            // more APDUs with transaction part are expected.
+            // Send a SW_OK to signal that we have received the chunk
             return io_send_sw(SW_OK);
-        } else {  // last APDU, let's parse and sign
-            if (G_context.tx_info.raw_tx_len + cdata->size > MAX_TRANSACTION_LEN ||  //
-                !buffer_move(cdata,
-                             G_context.tx_info.raw_tx + G_context.tx_info.raw_tx_len,
-                             cdata->size)) {
-                return io_send_sw(SW_WRONG_TX_LENGTH);
-            }
 
-            G_context.tx_info.raw_tx_len += cdata->size;
+        } else {
+            // last APDU for this transaction, let's parse, display and request a sign confirmation
 
             buffer_t buf = {.ptr = G_context.tx_info.raw_tx,
                             .size = G_context.tx_info.raw_tx_len,
@@ -79,23 +91,16 @@ int handler_sign_tx(buffer_t *cdata, uint8_t chunk, bool more) {
             parser_status_e status = transaction_deserialize(&buf, &G_context.tx_info.transaction);
             PRINTF("Parsing status: %d.\n", status);
             if (status != PARSING_OK) {
+                // reset the context to prevent sending the "last" chunk multiple times
+                G_context.req_type = REQUEST_UNDEFINED;
                 return io_send_sw(SW_TX_PARSING_FAIL);
             }
 
             G_context.state = STATE_PARSED;
 
-            cx_sha512_t keccak256;
-            cx_sha512_init(&keccak256);
-            cx_hash((cx_hash_t *) &keccak256,
-                    CX_LAST,
-                    G_context.tx_info.raw_tx,
-                    G_context.tx_info.raw_tx_len,
-                    G_context.tx_info.m_hash,
-                    sizeof(G_context.tx_info.m_hash));
-
-            PRINTF("Hash: %.*H\n", sizeof(G_context.tx_info.m_hash), G_context.tx_info.m_hash);
-
-            return ui_display_transaction();
+            int ui_status = ui_display_transaction();
+            G_context.req_type = REQUEST_UNDEFINED;  // all the work is done, reset the context
+            return ui_status;
         }
     }
 

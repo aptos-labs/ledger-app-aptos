@@ -46,7 +46,7 @@ class TxParsingFailError(Exception):
     pass
 
 
-class TxHashFail(Exception):
+class TxGetPubKeyFail(Exception):
     pass
 
 
@@ -55,4 +55,8 @@ class BadStateError(Exception):
 
 
 class SignatureFailError(Exception):
+    pass
+
+
+class DisplayGasFeeFailError(Exception):
     pass

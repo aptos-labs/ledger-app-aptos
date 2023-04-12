@@ -25,7 +25,7 @@ jobs:
             artifact: aptos-app-nanosp
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:bd1db4121a88260b9b6866d3c05b7d20f928743b
 
     steps:
       - name: Clone
@@ -46,7 +46,7 @@ jobs:
     name: Clang Static Analyzer
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:bd1db4121a88260b9b6866d3c05b7d20f928743b
 
     steps:
       - name: Clone
@@ -68,7 +68,7 @@ jobs:
     name: Unit test
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:bd1db4121a88260b9b6866d3c05b7d20f928743b
 
     steps:
       - name: Install curl
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:bd1db4121a88260b9b6866d3c05b7d20f928743b
 
     steps:
       - name: Clone
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/ledgerhq/speculos:latest
+      image: ghcr.io/ledgerhq/speculos:sha-45cb9a6
       options: --entrypoint /bin/bash
       ports:
         - 9999:9999

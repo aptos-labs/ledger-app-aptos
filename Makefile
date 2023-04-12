@@ -1,5 +1,5 @@
 # ****************************************************************************
-#    Ledger App Boilerplate
+#    Ledger App Aptos
 #    (c) 2020 Ledger SAS.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,8 @@ APP_LOAD_PARAMS += $(COMMON_LOAD_PARAMS)
 
 APPNAME      = "Aptos"
 APPVERSION_M = 0
-APPVERSION_N = 1
-APPVERSION_P = 0
+APPVERSION_N = 4
+APPVERSION_P = 15
 APPVERSION   = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 
 ifeq ($(TARGET_NAME),TARGET_NANOS)
@@ -55,6 +55,16 @@ DEFINES += USB_SEGMENT_SIZE=64
 DEFINES += BLE_SEGMENT_SIZE=32
 DEFINES += HAVE_WEBUSB WEBUSB_URL_SIZE_B=0 WEBUSB_URL=""
 DEFINES += UNUSED\(x\)=\(void\)x
+
+ifeq ($(TARGET_NAME),TARGET_NANOS)
+    DEFINES += MAX_TRANSACTION_PACKETS=6
+endif
+ifeq ($(TARGET_NAME),TARGET_NANOS2)
+    DEFINES += MAX_TRANSACTION_PACKETS=106
+endif
+ifeq ($(TARGET_NAME),TARGET_NANOX)
+    DEFINES += MAX_TRANSACTION_PACKETS=104
+endif
 
 ifeq ($(TARGET_NAME),TARGET_NANOX)
     DEFINES += HAVE_BLE BLE_COMMAND_TIMEOUT_MS=2000 HAVE_BLE_APDU

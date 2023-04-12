@@ -11,7 +11,7 @@ from .errors import (UnknownDeviceError,
                      DisplayAmountFailError,
                      WrongTxLengthError,
                      TxParsingFailError,
-                     TxHashFail,
+                     TxGetPubKeyFail,
                      BadStateError,
                      SignatureFailError)
 
@@ -29,7 +29,7 @@ __all__ = [
     "DisplayAmountFailError",
     "WrongTxLengthError",
     "TxParsingFailError",
-    "TxHashFail",
+    "TxGetPubKeyFail",
     "BadStateError",
     "SignatureFailError"
 ]
