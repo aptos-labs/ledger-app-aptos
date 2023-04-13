@@ -16,19 +16,12 @@ def pytest_addoption(parser):
     parser.addoption("--model",
                      action="store",
                      default="nanos")
-    parser.addoption("--sdk",
-                     action="store",
-                     default="2.1")
 
 
 @pytest.fixture(scope="session")
 def model(pytestconfig):
     return pytestconfig.getoption("model")
 
-
-@pytest.fixture(scope="session")
-def sdk(pytestconfig):
-    return pytestconfig.getoption("sdk")
 
 
 @pytest.fixture(scope="module")
@@ -45,9 +38,9 @@ def sw_h_path():
 
 
 @pytest.fixture
-def client(model, sdk):
+def client(model):
     file_path = SCRIPT_DIR.parent.parent / "bin" / "app.elf"
-    args = ['--model', model, '--sdk', sdk]
+    args = ['--model', model]
     with SpeculosClient(app=str(file_path), args=args) as client:
         yield client
 
