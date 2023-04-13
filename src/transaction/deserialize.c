@@ -27,6 +27,8 @@ parser_status_e transaction_deserialize(buffer_t *buf, transaction_t *tx) {
             if (buf->size == MAX_TRANSACTION_LEN && buf->ptr[MAX_TRANSACTION_LEN - 1] != 0) {
                 return WRONG_LENGTH_ERROR;
             }
+
+            __attribute__((fallthrough));
         default:
             break;
     }
