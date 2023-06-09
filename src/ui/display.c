@@ -111,6 +111,7 @@ void ui_flow_display(const ux_flow_step_t *const *steps) {
     ux_flow_init(0, steps, NULL);
 }
 
+// This function should always use UX_FLOW containing the blind signing warning!
 void ui_flow_verified_display(const ux_flow_step_t *const *steps) {
     if (N_storage.settings.allow_blind_signing) {
         ui_flow_display(steps);
@@ -178,6 +179,14 @@ int ui_display_address() {
     return 0;
 }
 
+// Step with icon and text
+UX_STEP_NOCB(ux_display_blind_warn_step,
+             pnn,
+             {
+                 &C_icon_warning,
+                 "Blind",
+                 "Signing",
+             });
 // Step with icon and text
 UX_STEP_NOCB(ux_display_review_step,
              pnn,
@@ -252,47 +261,53 @@ UX_STEP_NOCB(ux_display_gas_fee_step,
              });
 
 // FLOW to display default transaction information:
-// #1 screen : eye icon + "Review Transaction"
-// #2 screen : display tx type
-// #3 screen : display gas fee
-// #4 screen : approve button
-// #5 screen : reject button
-UX_FLOW(ux_display_tx_default_flow,
+// #1 screen : warning icon + "Blind Signing"
+// #2 screen : eye icon + "Review Transaction"
+// #3 screen : display tx type
+// #4 screen : display gas fee
+// #5 screen : approve button
+// #6 screen : reject button
+UX_FLOW(ux_display_blind_tx_default_flow,
+        &ux_display_blind_warn_step,
         &ux_display_review_step,
         &ux_display_tx_type_step,
         &ux_display_gas_fee_step,
         &ux_display_approve_step,
         &ux_display_reject_step);
 
-// FLOW to display message information:
+// SEQUENCE to display message information:
 // #1 screen : eye icon + "Review Message"
 // #2 screen : display message
 // #3 screen : approve button
 // #4 screen : reject button
-UX_FLOW(ux_display_message_flow,
-        &ux_display_review_msg_step,
-        &ux_display_msg_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
+#define SEQUENCE_MESSAGE                                                         \
+    &ux_display_review_msg_step, &ux_display_msg_step, &ux_display_approve_step, \
+        &ux_display_reject_step
+UX_FLOW(ux_display_message_flow, SEQUENCE_MESSAGE);
+// preceding screen : warning icon + "Blind Signing"
+UX_FLOW(ux_display_blind_message_flow, &ux_display_blind_warn_step, SEQUENCE_MESSAGE);
 
 // FLOW to display message information in short form:
 // #1 screen : eye icon + "Review Message"
-// #2 screen : display message
+// #2 screen : display short message
 // #3 screen : approve button
 // #4 screen : reject button
-UX_FLOW(ux_display_short_message_flow,
-        &ux_display_review_msg_step,
-        &ux_display_short_msg_step,
-        &ux_display_approve_step,
-        &ux_display_reject_step);
+#define SEQUENCE_SHORT_MESSAGE                                                         \
+    &ux_display_review_msg_step, &ux_display_short_msg_step, &ux_display_approve_step, \
+        &ux_display_reject_step
+UX_FLOW(ux_display_short_message_flow, SEQUENCE_SHORT_MESSAGE);
+// preceding screen : warning icon + "Blind Signing"
+UX_FLOW(ux_display_blind_short_message_flow, &ux_display_blind_warn_step, SEQUENCE_SHORT_MESSAGE);
 
 // FLOW to display entry_function transaction information:
-// #1 screen : eye icon + "Review Transaction"
-// #2 screen : display function name
-// #3 screen : display gas fee
-// #4 screen : approve button
-// #5 screen : reject button
-UX_FLOW(ux_display_tx_entry_function_flow,
+// #1 screen : warning icon + "Blind Signing"
+// #2 screen : eye icon + "Review Transaction"
+// #3 screen : display function name
+// #4 screen : display gas fee
+// #5 screen : approve button
+// #6 screen : reject button
+UX_FLOW(ux_display_blind_tx_entry_function_flow,
+        &ux_display_blind_warn_step,
         &ux_display_review_step,
         &ux_display_function_step,
         &ux_display_gas_fee_step,
@@ -387,7 +402,7 @@ int ui_display_transaction() {
         snprintf(g_struct, sizeof(g_struct), "unknown data type");
     }
 
-    ui_flow_verified_display(ux_display_tx_default_flow);
+    ui_flow_verified_display(ux_display_blind_tx_default_flow);
 
     return 0;
 }
@@ -396,7 +411,7 @@ int ui_display_message() {
     if (N_storage.settings.show_full_message) {
         if (is_str_interrupted((const char *) G_context.tx_info.raw_tx,
                                G_context.tx_info.raw_tx_len)) {
-            ui_flow_verified_display(ux_display_message_flow);
+            ui_flow_verified_display(ux_display_blind_message_flow);
         } else {
             ui_flow_display(ux_display_message_flow);
         }
@@ -412,12 +427,12 @@ int ui_display_message() {
 
         if (short_enough) {
             if (is_str_interrupted(g_struct, sizeof(g_struct))) {
-                ui_flow_verified_display(ux_display_short_message_flow);
+                ui_flow_verified_display(ux_display_blind_short_message_flow);
             } else {
                 ui_flow_display(ux_display_short_message_flow);
             }
         } else {
-            ui_flow_verified_display(ux_display_short_message_flow);
+            ui_flow_verified_display(ux_display_blind_short_message_flow);
         }
     }
 
@@ -453,7 +468,7 @@ int ui_display_entry_function() {
         case FUNC_COIN_TRANSFER:
             return ui_display_tx_coin_transfer();
         default:
-            ui_flow_verified_display(ux_display_tx_entry_function_flow);
+            ui_flow_verified_display(ux_display_blind_tx_entry_function_flow);
             break;
     }
     return 0;
