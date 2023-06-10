@@ -29,6 +29,7 @@
 #include "../sw.h"
 #include "../address.h"
 #include "action/validate.h"
+#include "action/extend.h"
 #include "../transaction/types.h"
 #include "../common/bip32.h"
 #include "../common/format.h"
@@ -36,6 +37,7 @@
 #define DOTS "[...]"
 
 static action_validate_cb g_validate_callback;
+static action_extend_ctx_t g_allow_blind_sign_ctx;
 static char g_amount[30];
 static char g_gas_fee[30];
 static char g_bip32_path[60];
@@ -99,23 +101,35 @@ UX_STEP_CB(ux_display_reject_step,
                &C_icon_crossmark,
                "Reject",
            });
+// Step with the button to change settings
+UX_STEP_CB(ux_display_allow_blind_sign_step,
+           pnn,
+           { g_allow_blind_sign_ctx.call(g_allow_blind_sign_ctx.steps); },
+           {
+               &C_icon_validate_14,
+               "Allow",
+               "Blind Signing",
+           });
 
 // FLOW to display blind signing banner:
 // #1 screen : warning icon + "Blind signing must be enabled in Settings"
 // #2 screen : reject button
 UX_FLOW(ux_display_blind_sign_banner_flow,
         &ux_display_blind_sign_banner_step,
+        &ux_display_allow_blind_sign_step,
         &ux_display_reject_step);
 
 void ui_flow_display(const ux_flow_step_t *const *steps) {
     ux_flow_init(0, steps, NULL);
 }
 
-// This function should always use UX_FLOW containing the blind signing warning!
+// This function should always use UX_FLOW containing the blind signing warning on the first step!
 void ui_flow_verified_display(const ux_flow_step_t *const *steps) {
     if (N_storage.settings.allow_blind_signing) {
         ui_flow_display(steps);
     } else {
+        g_allow_blind_sign_ctx.call = &ui_action_allow_blind_signing;
+        g_allow_blind_sign_ctx.steps = steps;
         ui_flow_display(ux_display_blind_sign_banner_flow);
     }
 }

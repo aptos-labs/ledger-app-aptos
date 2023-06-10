@@ -13,13 +13,9 @@ static const char* binary_choice_getter(unsigned int idx) {
     return NULL;
 }
 
-static void show_full_message_change(uint8_t value) {
-    nvm_write((void*) &N_storage.settings.show_full_message, &value, sizeof(value));
-}
-
 static void show_full_message_selector(unsigned int idx) {
     if (idx == 0 || idx == 1) {
-        show_full_message_change((uint8_t) idx);
+        settings_show_full_message_change((uint8_t) idx);
     }
     ux_menulist_init_select(0,
                             settings_submenu_getter,
@@ -27,13 +23,9 @@ static void show_full_message_selector(unsigned int idx) {
                             MENU_SHOW_FULL_MSG);
 }
 
-static void allow_blind_signing_change(uint8_t value) {
-    nvm_write((void*) &N_storage.settings.allow_blind_signing, &value, sizeof(value));
-}
-
 static void allow_blind_signing_selector(unsigned int idx) {
     if (idx == 0 || idx == 1) {
-        allow_blind_signing_change((uint8_t) idx);
+        settings_allow_blind_signing_change((uint8_t) idx);
     }
     ux_menulist_init_select(0,
                             settings_submenu_getter,
@@ -71,4 +63,12 @@ void settings_submenu_selector(unsigned int idx) {
         default:
             ui_menu_main();
     }
+}
+
+void settings_show_full_message_change(uint8_t value) {
+    nvm_write((void*) &N_storage.settings.show_full_message, &value, sizeof(value));
+}
+
+void settings_allow_blind_signing_change(uint8_t value) {
+    nvm_write((void*) &N_storage.settings.allow_blind_signing, &value, sizeof(value));
 }
