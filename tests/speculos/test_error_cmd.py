@@ -37,6 +37,6 @@ def test_wrong_p1p2(client):
 def test_wrong_data_length(client):
     try:
         # APDUs must be at least 5 bytes: CLA, INS, P1, P2, Lc.
-        client._apdu_exchange(b"5B00")
+        client._apdu_exchange(b"5B030000")
     except ApduException as error:
         raise DeviceException(error_code=error.sw)
