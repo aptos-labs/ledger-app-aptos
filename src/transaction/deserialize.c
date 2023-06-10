@@ -1,9 +1,11 @@
 #include <string.h>
+
+#include "buffer.h"
+
 #include "deserialize.h"
 #include "utils.h"
 #include "types.h"
 #include "../constants.h"
-#include "../common/buffer.h"
 #include "../bcs/init.h"
 #include "../bcs/decoder.h"
 

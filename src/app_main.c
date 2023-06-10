@@ -26,14 +26,20 @@
 #include "io.h"
 #include "sw.h"
 #include "ui/menu.h"
-#include "apdu/parser.h"
 #include "apdu/dispatcher.h"
 
-uint8_t G_io_seproxyhal_spi_buffer[IO_SEPROXYHAL_BUFFER_SIZE_B];
-ux_state_t G_ux;
-bolos_ux_params_t G_ux_params;
 global_ctx_t G_context;
 const app_storage_t N_app_storage;
+
+void nvm_app_storage_init() {
+    if (N_storage.initialized != 0x01) {
+        app_storage_t storage;
+        storage.settings.show_full_message = 0x00;
+        storage.settings.allow_blind_signing = 0x00;
+        storage.initialized = 0x01;
+        nvm_write((void *) &N_storage, (void *) &storage, sizeof(app_storage_t));
+    }
+}
 
 /**
  * Handle APDU command received and send back APDU response using handlers.
@@ -45,6 +51,8 @@ void app_main() {
     command_t cmd;
 
     io_init();
+    nvm_app_storage_init();
+    ui_menu_main();
 
     // Reset context
     explicit_bzero(&G_context, sizeof(G_context));
@@ -95,79 +103,4 @@ void app_main() {
             END_TRY;
         }
     }
-}
-
-/**
- * Exit the application and go back to the dashboard.
- */
-void app_exit() {
-    BEGIN_TRY_L(exit) {
-        TRY_L(exit) {
-            os_sched_exit(-1);
-        }
-        FINALLY_L(exit) {
-        }
-    }
-    END_TRY_L(exit);
-}
-
-void nvm_app_storage_init() {
-    if (N_storage.initialized != 0x01) {
-        app_storage_t storage;
-        storage.settings.show_full_message = 0x00;
-        storage.settings.allow_blind_signing = 0x00;
-        storage.initialized = 0x01;
-        nvm_write((void *) &N_storage, (void *) &storage, sizeof(app_storage_t));
-    }
-}
-
-/**
- * Main loop to setup USB, Bluetooth, UI and launch app_main().
- */
-__attribute__((section(".boot"))) int main() {
-    __asm volatile("cpsie i");
-
-    os_boot();
-
-    for (;;) {
-        // Reset UI
-        memset(&G_ux, 0, sizeof(G_ux));
-
-        BEGIN_TRY {
-            TRY {
-                io_seproxyhal_init();
-                nvm_app_storage_init();
-
-#ifdef TARGET_NANOX
-                G_io_app.plane_mode = os_setting_get(OS_SETTING_PLANEMODE, NULL, 0);
-#endif  // TARGET_NANOX
-
-                USB_power(0);
-                USB_power(1);
-
-                ui_menu_main();
-
-#ifdef HAVE_BLE
-                BLE_power(0, NULL);
-                BLE_power(1, "Nano X");
-#endif  // HAVE_BLE
-                app_main();
-            }
-            CATCH(EXCEPTION_IO_RESET) {
-                CLOSE_TRY;
-                continue;
-            }
-            CATCH_ALL {
-                CLOSE_TRY;
-                break;
-            }
-            FINALLY {
-            }
-        }
-        END_TRY;
-    }
-
-    app_exit();
-
-    return 0;
 }

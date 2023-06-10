@@ -17,10 +17,11 @@
 
 #include <stdbool.h>  // bool
 
+#include "io.h"
+
 #include "validate.h"
 #include "../menu.h"
 #include "../../sw.h"
-#include "../../io.h"
 #include "../../crypto.h"
 #include "../../globals.h"
 #include "../../helper/send_response.h"

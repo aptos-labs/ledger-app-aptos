@@ -15,26 +15,21 @@
  *  limitations under the License.
  *****************************************************************************/
 
-#include <stddef.h>   // size_t
-#include <stdint.h>   // uint*_t
-#include <stdbool.h>  // bool
+#include <stddef.h>  // size_t
+#include <stdint.h>  // int*_t, uint*_t
+#include <string.h>  // strncpy, memmove
 
-#include "parser.h"
-#include "../types.h"
-#include "../offsets.h"
+#include "format.h"
 
-bool apdu_parser(command_t *cmd, uint8_t *buf, size_t buf_len) {
-    // Check minimum length and Lc field of APDU command
-    if (buf_len < OFFSET_CDATA || buf_len - OFFSET_CDATA != buf[OFFSET_LC]) {
-        return false;
+#include "user_format.h"
+
+int format_prefixed_hex(const uint8_t *in, size_t in_len, char *out, size_t out_len) {
+    const char prefix[] = "0x";
+    const size_t prefix_len = sizeof(prefix) - 1;
+
+    if (out_len < sizeof(prefix)) {
+        return -1;
     }
-
-    cmd->cla = buf[OFFSET_CLA];
-    cmd->ins = (command_e) buf[OFFSET_INS];
-    cmd->p1 = buf[OFFSET_P1];
-    cmd->p2 = buf[OFFSET_P2];
-    cmd->lc = buf[OFFSET_LC];
-    cmd->data = (buf[OFFSET_LC] > 0) ? buf + OFFSET_CDATA : NULL;
-
-    return true;
+    strncpy(out, prefix, sizeof(prefix));
+    return format_hex(in, in_len, out + prefix_len, out_len - prefix_len);
 }

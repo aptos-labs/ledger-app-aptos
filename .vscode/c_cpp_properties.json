@@ -1,6 +1,6 @@
 {
   "env": {
-    "BOLOS_SDK": "/opt/nanosplus-secure-sdk",
+    "BOLOS_SDK": "/opt/ledger-secure-sdk",
     "BOLOS_ENV": "/opt/bolos-devenv"
   },
   "configurations": [
@@ -11,7 +11,11 @@
         "${workspaceFolder}/src",
         "${env:BOLOS_SDK}/include/*",
         "${env:BOLOS_SDK}/lib_ux/include/*",
-        "${env:BOLOS_SDK}/lib_cxng/include/*"
+        "${env:BOLOS_SDK}/lib_cxng/include/*",
+        "${env:BOLOS_SDK}/lib_bagl/include/*",
+        "${env:BOLOS_SDK}/lib_standard_app/*",
+        "${env:BOLOS_SDK}/target/nanos2/include",
+        "./build/nanos2/gen_src"
       ],
       "defines": [
         "TARGET_NANOS",
