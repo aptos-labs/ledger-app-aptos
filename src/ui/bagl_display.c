@@ -15,6 +15,8 @@
  *  limitations under the License.
  *****************************************************************************/
 
+#ifdef HAVE_BAGL
+
 #include <stdbool.h>  // bool
 #include <string.h>   // memset
 
@@ -25,13 +27,15 @@
 #include "bip32.h"
 #include "format.h"
 
+#include "bagl_display.h"
 #include "display.h"
+#include "settings.h"
+#include "menu.h"
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
 #include "../address.h"
 #include "action/validate.h"
-#include "action/extend.h"
 #include "../transaction/types.h"
 #include "../common/user_format.h"
 
@@ -45,6 +49,27 @@ static char g_bip32_path[60];
 static char g_address[67];
 static char g_function[120];
 static char g_struct[120];
+
+// Validate/Invalidate public key and go back to home
+static void ui_action_validate_pubkey(bool choice) {
+    validate_pubkey(choice);
+    ui_menu_main();
+}
+
+// Validate/Invalidate transaction and go back to home
+static void ui_action_validate_transaction(bool choice) {
+    validate_transaction(choice);
+    ui_menu_main();
+}
+
+// Action to allow blind signing in settings
+static void ui_action_allow_blind_signing(const ux_flow_step_t *const *steps) {
+    settings_allow_blind_signing_change(1);
+
+    // Passed UX_FLOW steps are expected to contain a blind signing warning on the first step.
+    // Skip it for better UX here.
+    ux_flow_init(0, steps, steps[1]);
+}
 
 static size_t count_leading_zeros(const uint8_t *src, size_t len) {
     for (size_t i = 0; i < len; i++) {
@@ -557,3 +582,5 @@ int ui_display_tx_coin_transfer() {
 
     return 0;
 }
+
+#endif

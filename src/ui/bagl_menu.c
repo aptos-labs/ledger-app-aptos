@@ -15,6 +15,8 @@
  *  limitations under the License.
  *****************************************************************************/
 
+#ifdef HAVE_BAGL
+
 #include "os.h"
 #include "ux.h"
 #include "glyphs.h"
@@ -22,7 +24,7 @@
 #include "../globals.h"
 #include "menu.h"
 #include "settings.h"
-#include "display.h"
+#include "bagl_display.h"
 
 UX_STEP_NOCB(ux_menu_ready_step, pnn, {&C_aptos_logo, "Aptos", "is ready"});
 UX_STEP_CB(ux_menu_settings_step, pb, ui_menu_settings(), {&C_icon_coggle, "Settings"});
@@ -70,3 +72,5 @@ UX_FLOW(ux_menu_about_flow,
 void ui_menu_about() {
     ui_flow_display(ux_menu_about_flow);
 }
+
+#endif
