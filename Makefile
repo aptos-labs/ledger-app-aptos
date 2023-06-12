@@ -51,10 +51,10 @@ APPVERSION   = "$(APPVERSION_M).$(APPVERSION_N).$(APPVERSION_P)"
 APP_SOURCE_PATH += src
 
 # Application icons
-ICON_NANOS = icons/nanos_app_aptos.gif
-ICON_NANOX = icons/nanox_app_aptos.gif
-ICON_NANOSP = icons/nanox_app_aptos.gif
-ICON_STAX = icons/nanox_app_aptos.gif
+ICON_NANOS = icons/app_aptos_16px.gif
+ICON_NANOX = icons/app_aptos_14px.gif
+ICON_NANOSP = icons/app_aptos_14px.gif
+ICON_STAX = icons/app_aptos_32px.gif
 
 # Application allowed derivation curves
 CURVE_APP_LOAD_PARAMS = ed25519

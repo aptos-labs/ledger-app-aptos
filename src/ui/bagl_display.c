@@ -45,8 +45,6 @@ static action_validate_cb g_validate_callback;
 static action_extend_ctx_t g_allow_blind_sign_ctx;
 static char g_amount[30];
 static char g_gas_fee[30];
-static char g_bip32_path[60];
-static char g_address[67];
 static char g_function[120];
 static char g_struct[120];
 
@@ -191,32 +189,14 @@ UX_FLOW(ux_display_pubkey_flow,
         &ux_display_reject_step);
 
 int ui_display_address() {
-    if (G_context.req_type != CONFIRM_ADDRESS) {
-        return io_send_sw(SW_BAD_STATE);
+    const int ret = ui_prepare_address();
+    if (ret == UI_PREPARED) {
+        g_validate_callback = &ui_action_validate_pubkey;
+        ui_flow_display(ux_display_pubkey_flow);
+        return 0;
     }
 
-    memset(g_bip32_path, 0, sizeof(g_bip32_path));
-    if (!bip32_path_format(G_context.bip32_path,
-                           G_context.bip32_path_len,
-                           g_bip32_path,
-                           sizeof(g_bip32_path))) {
-        return io_send_sw(SW_DISPLAY_BIP32_PATH_FAIL);
-    }
-
-    memset(g_address, 0, sizeof(g_address));
-    uint8_t address[ADDRESS_LEN] = {0};
-    if (!address_from_pubkey(G_context.pk_info.raw_public_key, address, sizeof(address))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
-    }
-    if (0 > format_prefixed_hex(address, sizeof(address), g_address, sizeof(g_address))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
-    }
-
-    g_validate_callback = &ui_action_validate_pubkey;
-
-    ui_flow_display(ux_display_pubkey_flow);
-
-    return 0;
+    return ret;
 }
 
 // Step with icon and text

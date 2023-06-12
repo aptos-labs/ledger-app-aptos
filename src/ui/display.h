@@ -3,6 +3,11 @@
 #include <stdbool.h>  // bool
 #include "ux.h"
 
+#define UI_PREPARED -10
+
+extern char g_bip32_path[60];
+extern char g_address[67];
+
 /**
  * Callback to reuse action with approve/reject in step FLOW.
  */
@@ -15,6 +20,8 @@ typedef void (*action_validate_cb)(bool);
  *
  */
 int ui_display_address(void);
+
+int ui_prepare_address(void);
 
 /**
  * Display transaction information on the device and ask confirmation to sign.
