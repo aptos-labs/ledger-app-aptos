@@ -23,6 +23,12 @@
 #include "menu.h"
 #include "../globals.h"
 
+static const char* settings_submenu_getter(unsigned int idx);
+
+static void settings_submenu_selector(unsigned int idx);
+
+enum menu_options { MENU_SHOW_FULL_MSG = 0, MENU_ALLOW_BLIND_SIGNING = 1 };
+
 static const char* const binary_choice_getter_values[] = {"No", "Yes", "Back"};
 
 static const char* binary_choice_getter(unsigned int idx) {
@@ -58,14 +64,14 @@ static const char* const settings_submenu_getter_values[] = {
     "Back",
 };
 
-const char* settings_submenu_getter(unsigned int idx) {
+static const char* settings_submenu_getter(unsigned int idx) {
     if (idx < ARRAYLEN(settings_submenu_getter_values)) {
         return settings_submenu_getter_values[idx];
     }
     return NULL;
 }
 
-void settings_submenu_selector(unsigned int idx) {
+static void settings_submenu_selector(unsigned int idx) {
     switch (idx) {
         case MENU_SHOW_FULL_MSG:
             ux_menulist_init_select(0,
@@ -84,12 +90,8 @@ void settings_submenu_selector(unsigned int idx) {
     }
 }
 
-void settings_show_full_message_change(uint8_t value) {
-    nvm_write((void*) &N_storage.settings.show_full_message, &value, sizeof(value));
-}
-
-void settings_allow_blind_signing_change(uint8_t value) {
-    nvm_write((void*) &N_storage.settings.allow_blind_signing, &value, sizeof(value));
+void ui_menu_settings() {
+    ux_menulist_init(0, settings_submenu_getter, settings_submenu_selector);
 }
 
 #endif

@@ -34,6 +34,10 @@ endif
 ifeq ($(TARGET_NAME),TARGET_NANOX)
     DEFINES += MAX_TRANSACTION_PACKETS=90
 endif
+ifeq ($(TARGET_NAME),TARGET_STAX)
+    # still need to find the right value
+    DEFINES += MAX_TRANSACTION_PACKETS=70
+endif
 
 ########################################
 #        Mandatory configuration       #

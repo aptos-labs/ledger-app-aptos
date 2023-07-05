@@ -51,10 +51,6 @@ void ui_menu_main() {
     ui_flow_display(ux_menu_main_flow);
 }
 
-void ui_menu_settings() {
-    ux_menulist_init(0, settings_submenu_getter, settings_submenu_selector);
-}
-
 UX_STEP_NOCB(ux_menu_info_step, bn, {"Aptos App", "(c) 2022 Pontem"});
 UX_STEP_NOCB(ux_menu_version_step, bn, {"Version", APPVERSION});
 UX_STEP_CB(ux_menu_back_step, pb, ui_menu_main(), {&C_icon_back, "Back"});

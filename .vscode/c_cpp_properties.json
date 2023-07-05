@@ -13,11 +13,14 @@
         "${env:BOLOS_SDK}/lib_ux/include/*",
         "${env:BOLOS_SDK}/lib_cxng/include/*",
         "${env:BOLOS_SDK}/lib_bagl/include/*",
+        "${env:BOLOS_SDK}/lib_nbgl/include/*",
         "${env:BOLOS_SDK}/lib_standard_app/*",
         "${env:BOLOS_SDK}/target/nanos2/include",
-        "./build/nanos2/gen_src"
+        // "./build/nanos2/gen_src"
+        "./build/stax/gen_src"
       ],
       "defines": [
+        "HAVE_PIEZO_SOUND",
         "TARGET_NANOS",
         "OS_IO_SEPROXYHAL",
         "HAVE_ECC",
@@ -31,6 +34,7 @@
         "HAVE_ECC_WEIERSTRASS",
         "HAVE_SECP256K1_CURVE",
         "HAVE_BAGL",
+        "HAVE_NBGL",
         "HAVE_SPRINTF",
         "HAVE_IO_USB",
         "HAVE_L4_USBLIB",

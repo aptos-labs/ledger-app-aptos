@@ -4,6 +4,11 @@
 #include "ux.h"
 
 /**
+ * Callback to reuse action with approve/reject in step FLOW.
+ */
+typedef void (*action_validate_cb)(bool);
+
+/**
  * A convenient function for displaying the sequence of steps.
  */
 void ui_flow_display(const ux_flow_step_t *const *steps);

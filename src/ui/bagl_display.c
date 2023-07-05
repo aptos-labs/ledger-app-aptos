@@ -24,8 +24,6 @@
 #include "ux.h"
 #include "glyphs.h"
 #include "io.h"
-#include "bip32.h"
-#include "format.h"
 
 #include "bagl_display.h"
 #include "display.h"
@@ -34,19 +32,13 @@
 #include "constants.h"
 #include "../globals.h"
 #include "../sw.h"
-#include "../address.h"
 #include "action/validate.h"
-#include "../transaction/types.h"
 #include "../common/user_format.h"
 
 #define DOTS "[...]"
 
 static action_validate_cb g_validate_callback;
 static action_extend_ctx_t g_allow_blind_sign_ctx;
-static char g_amount[30];
-static char g_gas_fee[30];
-static char g_function[120];
-static char g_struct[120];
 
 // Validate/Invalidate public key and go back to home
 static void ui_action_validate_pubkey(bool choice) {
@@ -67,29 +59,6 @@ static void ui_action_allow_blind_signing(const ux_flow_step_t *const *steps) {
     // Passed UX_FLOW steps are expected to contain a blind signing warning on the first step.
     // Skip it for better UX here.
     ux_flow_init(0, steps, steps[1]);
-}
-
-static size_t count_leading_zeros(const uint8_t *src, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (src[i] != 0) {
-            return i;
-        }
-    }
-    return len;
-}
-
-static bool is_str_interrupted(const char *src, size_t len) {
-    bool interrupted = false;
-    for (size_t i = 0; i < len; i++) {
-        if (!interrupted && src[i] == 0) {
-            interrupted = true;
-            continue;
-        }
-        if (interrupted && src[i] != 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 #ifdef TARGET_NANOS
@@ -189,9 +158,10 @@ UX_FLOW(ux_display_pubkey_flow,
         &ux_display_reject_step);
 
 int ui_display_address() {
+    g_validate_callback = &ui_action_validate_pubkey;
+
     const int ret = ui_prepare_address();
     if (ret == UI_PREPARED) {
-        g_validate_callback = &ui_action_validate_pubkey;
         ui_flow_display(ux_display_pubkey_flow);
         return 0;
     }
@@ -373,58 +343,15 @@ UX_FLOW(ux_display_tx_coin_transfer_flow,
         &ux_display_reject_step);
 
 int ui_display_transaction() {
-    if (G_context.req_type != CONFIRM_TRANSACTION || G_context.state != STATE_PARSED) {
-        G_context.state = STATE_NONE;
-        return io_send_sw(SW_BAD_STATE);
-    }
-
     g_validate_callback = &ui_action_validate_transaction;
 
-    transaction_t *transaction = &G_context.tx_info.transaction;
-
-    if (transaction->tx_variant == TX_MESSAGE) {
-        return ui_display_message();
-    } else if (transaction->tx_variant != TX_UNDEFINED) {
-        uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
-        memset(g_gas_fee, 0, sizeof(g_gas_fee));
-        char gas_fee[30] = {0};
-        if (!format_fpu64(gas_fee, sizeof(gas_fee), gas_fee_value, 8)) {
-            return io_send_sw(SW_DISPLAY_GAS_FEE_FAIL);
-        }
-        snprintf(g_gas_fee, sizeof(g_gas_fee), "APT %.*s", sizeof(gas_fee), gas_fee);
-        PRINTF("Gas Fee: %s\n", g_gas_fee);
-
-        if (transaction->tx_variant == TX_RAW) {
-            switch (transaction->payload_variant) {
-                case PAYLOAD_ENTRY_FUNCTION:
-                    return ui_display_entry_function();
-                case PAYLOAD_SCRIPT:
-                    memset(g_struct, 0, sizeof(g_struct));
-                    snprintf(g_struct,
-                             sizeof(g_struct),
-                             "%s [payload = SCRIPT]",
-                             RAW_TRANSACTION_SALT);
-                    break;
-                default:
-                    memset(g_struct, 0, sizeof(g_struct));
-                    snprintf(g_struct,
-                             sizeof(g_struct),
-                             "%s [payload = UNKNOWN]",
-                             RAW_TRANSACTION_SALT);
-                    break;
-            }
-        } else if (transaction->tx_variant == TX_RAW_WITH_DATA) {
-            memset(g_struct, 0, sizeof(g_struct));
-            snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
-        }
-    } else {
-        memset(g_struct, 0, sizeof(g_struct));
-        snprintf(g_struct, sizeof(g_struct), "unknown data type");
+    const int ret = ui_prepare_transaction();
+    if (ret == UI_PREPARED) {
+        ui_flow_verified_display(ux_display_blind_tx_default_flow);
+        return 0;
     }
 
-    ui_flow_verified_display(ux_display_blind_tx_default_flow);
-
-    return 0;
+    return ret;
 }
 
 int ui_display_message() {
@@ -460,107 +387,33 @@ int ui_display_message() {
 }
 
 int ui_display_entry_function() {
-    entry_function_payload_t *function = &G_context.tx_info.transaction.payload.entry_function;
-    char function_module_id_address_hex[67] = {0};
-
-    // Be sure to display at least 1 byte, even if it is zero
-    size_t leading_zeros = count_leading_zeros(function->module_id.address, ADDRESS_LEN - 1);
-    if (0 > format_prefixed_hex(function->module_id.address + leading_zeros,
-                                ADDRESS_LEN - leading_zeros,
-                                function_module_id_address_hex,
-                                sizeof(function_module_id_address_hex))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    const int ret = ui_prepare_entry_function();
+    if (ret == UI_PREPARED) {
+        ui_flow_verified_display(ux_display_blind_tx_entry_function_flow);
+        return 0;
     }
-    memset(g_function, 0, sizeof(g_function));
-    snprintf(g_function,
-             sizeof(g_function),
-             "%s::%.*s::%.*s",
-             function_module_id_address_hex,
-             function->module_id.name.len,
-             function->module_id.name.bytes,
-             function->function_name.len,
-             function->function_name.bytes);
-    PRINTF("Function: %s\n", g_function);
 
-    switch (function->known_type) {
-        case FUNC_APTOS_ACCOUNT_TRANSFER:
-            return ui_display_tx_aptos_account_transfer();
-        case FUNC_COIN_TRANSFER:
-            return ui_display_tx_coin_transfer();
-        default:
-            ui_flow_verified_display(ux_display_blind_tx_entry_function_flow);
-            break;
-    }
-    return 0;
+    return ret;
 }
 
 int ui_display_tx_aptos_account_transfer() {
-    agrs_aptos_account_trasfer_t *transfer =
-        &G_context.tx_info.transaction.payload.entry_function.args.transfer;
-
-    // For well-known functions, display the transaction type in human-readable format
-    memset(g_struct, 0, sizeof(g_struct));
-    snprintf(g_struct, sizeof(g_struct), "APT transfer");
-    PRINTF("Tx Type: %s\n", g_struct);
-
-    memset(g_address, 0, sizeof(g_address));
-    if (0 > format_prefixed_hex(transfer->receiver, ADDRESS_LEN, g_address, sizeof(g_address))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    const int ret = ui_prepare_tx_aptos_account_transfer();
+    if (ret == UI_PREPARED) {
+        ui_flow_display(ux_display_tx_aptos_account_transfer_flow);
+        return 0;
     }
-    PRINTF("Receiver: %s\n", g_address);
 
-    memset(g_amount, 0, sizeof(g_amount));
-    char amount[30] = {0};
-    if (!format_fpu64(amount, sizeof(amount), transfer->amount, 8)) {
-        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
-    }
-    snprintf(g_amount, sizeof(g_amount), "APT %.*s", sizeof(amount), amount);
-    PRINTF("Amount: %s\n", g_amount);
-
-    ui_flow_display(ux_display_tx_aptos_account_transfer_flow);
-
-    return 0;
+    return ret;
 }
 
 int ui_display_tx_coin_transfer() {
-    agrs_coin_trasfer_t *transfer =
-        &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
-    char transfer_ty_coin_address_hex[67] = {0};
-
-    // Be sure to display at least 1 byte, even if it is zero
-    size_t leading_zeros = count_leading_zeros(transfer->ty_coin.address, ADDRESS_LEN - 1);
-    if (0 > format_prefixed_hex(transfer->ty_coin.address + leading_zeros,
-                                ADDRESS_LEN - leading_zeros,
-                                transfer_ty_coin_address_hex,
-                                sizeof(transfer_ty_coin_address_hex))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
+    const int ret = ui_prepare_tx_coin_transfer();
+    if (ret == UI_PREPARED) {
+        ui_flow_display(ux_display_tx_coin_transfer_flow);
+        return 0;
     }
-    memset(g_struct, 0, sizeof(g_struct));
-    snprintf(g_struct,
-             sizeof(g_struct),
-             "%s::%.*s::%.*s",
-             transfer_ty_coin_address_hex,
-             transfer->ty_coin.module_name.len,
-             transfer->ty_coin.module_name.bytes,
-             transfer->ty_coin.name.len,
-             transfer->ty_coin.name.bytes);
-    PRINTF("Coin Type: %s\n", g_struct);
 
-    memset(g_address, 0, sizeof(g_address));
-    if (0 > format_prefixed_hex(transfer->receiver, ADDRESS_LEN, g_address, sizeof(g_address))) {
-        return io_send_sw(SW_DISPLAY_ADDRESS_FAIL);
-    }
-    PRINTF("Receiver: %s\n", g_address);
-
-    memset(g_amount, 0, sizeof(g_amount));
-    if (!format_fpu64(g_amount, sizeof(g_amount), transfer->amount, 8)) {
-        return io_send_sw(SW_DISPLAY_AMOUNT_FAIL);
-    }
-    PRINTF("Amount: %s\n", g_amount);
-
-    ui_flow_display(ux_display_tx_coin_transfer_flow);
-
-    return 0;
+    return ret;
 }
 
 #endif
