@@ -49,8 +49,8 @@ static void blind_sign_continue() {
 static void blind_sign_info() {
     nbgl_useCaseReviewStart(&C_round_warning_64px,
                             "Blind Signing",
-                            "This operation cannot be\nsecurely interpreted by Ledger\nStax. It "
-                            "might put your assets\nat risk.",
+                            "This operation cannot be\nsecurely interpreted by\nLedger Stax.\n"
+                            "It might put your assets\nat risk.",
                             blind_sign_ctx.reject_text,
                             blind_sign_continue,
                             blind_sign_ctx.reject_callback);
