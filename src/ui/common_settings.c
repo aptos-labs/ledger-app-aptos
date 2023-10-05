@@ -15,13 +15,15 @@
  *  limitations under the License.
  *****************************************************************************/
 
-#include "extend.h"
-#include "../settings.h"
+#include "os.h"
 
-void ui_action_allow_blind_signing(const ux_flow_step_t *const *steps) {
-    settings_allow_blind_signing_change(1);
+#include "settings.h"
+#include "../globals.h"
 
-    // Passed UX_FLOW steps are expected to contain a blind signing warning on the first step.
-    // Skip it for better UX here.
-    ux_flow_init(0, steps, steps[1]);
+void settings_show_full_message_change(uint8_t value) {
+    nvm_write((void*) &N_storage.settings.show_full_message, &value, sizeof(value));
+}
+
+void settings_allow_blind_signing_change(uint8_t value) {
+    nvm_write((void*) &N_storage.settings.allow_blind_signing, &value, sizeof(value));
 }

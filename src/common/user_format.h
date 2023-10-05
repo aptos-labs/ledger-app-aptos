@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stddef.h>  // size_t
-#include <stdint.h>  // int*_t, uint*_t
+#include <stdbool.h>  // bool
+#include <stddef.h>   // size_t
+#include <stdint.h>   // int*_t, uint*_t
 
 /**
  * Format byte buffer to uppercase hexadecimal string prefixed with '0x'.
@@ -19,3 +20,5 @@
  *
  */
 int format_prefixed_hex(const uint8_t *in, size_t in_len, char *out, size_t out_len);
+
+bool is_str_interrupted(const char *src, size_t len);
