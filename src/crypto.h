@@ -18,13 +18,13 @@
  * @param[in]  bip32_path_len
  *   Number of path in BIP32 path.
  *
- * @return 0 on success, error number otherwise.
+ * @return CX_OK on success, error number otherwise.
  *
  */
-int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
-                              uint8_t chain_code[static 32],
-                              const uint32_t *bip32_path,
-                              uint8_t bip32_path_len);
+cx_err_t crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
+                                   uint8_t chain_code[static 32],
+                                   const uint32_t *bip32_path,
+                                   uint8_t bip32_path_len);
 
 /**
  * Initialize public key given private key.
@@ -36,19 +36,19 @@ int crypto_derive_private_key(cx_ecfp_private_key_t *private_key,
  * @param[out] raw_public_key
  *   Pointer to raw public key.
  *
- * @throw INVALID_PARAMETER
+ * @return CX_OK on success, error number otherwise.
  *
  */
-void crypto_init_public_key(cx_ecfp_private_key_t *private_key,
-                            cx_ecfp_public_key_t *public_key,
-                            uint8_t raw_public_key[static 32]);
+cx_err_t crypto_init_public_key(cx_ecfp_private_key_t *private_key,
+                                cx_ecfp_public_key_t *public_key,
+                                uint8_t raw_public_key[static 32]);
 
 /**
  * Sign message hash in global context.
  *
  * @see G_context.bip32_path, G_context.tx_info.signature.
  *
- * @return 0 on success, error number otherwise.
+ * @return CX_OK on success, error number otherwise.
  *
  */
-int crypto_sign_message(void);
+cx_err_t crypto_sign_message(void);

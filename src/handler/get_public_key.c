@@ -47,18 +47,26 @@ int handler_get_public_key(buffer_t *cdata, bool display) {
     }
 
     // derive private key according to BIP32 path
-    int error = crypto_derive_private_key(&private_key,
-                                          G_context.pk_info.chain_code,
-                                          G_context.bip32_path,
-                                          G_context.bip32_path_len);
-    if (error != 0) {
+    cx_err_t error = crypto_derive_private_key(&private_key,
+                                               G_context.pk_info.chain_code,
+                                               G_context.bip32_path,
+                                               G_context.bip32_path_len);
+    if (error != CX_OK) {
         explicit_bzero(&private_key, sizeof(private_key));
-        PRINTF("Error code: %x.\n", error);
+        PRINTF("crypto_derive_private_key error code: %x.\n", error);
         G_context.req_type = REQUEST_UNDEFINED;
         return io_send_sw(SW_GET_PUB_KEY_FAIL);
     }
+
     // generate corresponding public key
-    crypto_init_public_key(&private_key, &public_key, G_context.pk_info.raw_public_key);
+    error = crypto_init_public_key(&private_key, &public_key, G_context.pk_info.raw_public_key);
+
+    if (error != CX_OK) {
+        explicit_bzero(&private_key, sizeof(private_key));
+        PRINTF("crypto_init_public_key error code: %x.\n", error);
+        G_context.req_type = REQUEST_UNDEFINED;
+        return io_send_sw(SW_GET_PUB_KEY_FAIL);
+    }
 
     // reset private key
     explicit_bzero(&private_key, sizeof(private_key));
