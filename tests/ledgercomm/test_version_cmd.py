@@ -1,2 +1,2 @@
 def test_version(cmd):
-    assert cmd.get_version() == (0, 6, 2)
+    assert cmd.get_version() == (0, 6, 3)
