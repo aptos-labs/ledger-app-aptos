@@ -4,12 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - master
       - main
       - develop
   pull_request:
-    branches:
-      - main
-      - develop
     # Excluded path: add the paths you want to ignore instead of deleting the workflow
     paths-ignore:
       - '.github/workflows/*.yml'

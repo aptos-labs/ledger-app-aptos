@@ -1,0 +1,26 @@
+name: Misspellings checks
+
+# This workflow performs some misspelling checks on the repository
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  misspell:
+    name: Check misspellings
+    runs-on: ubuntu-latest
+    steps:
+    - name: Clone
+      uses: actions/checkout@v3
+
+    - name: Check misspellings
+      uses: codespell-project/actions-codespell@v1
+      with:
+        builtin: clear,rare
+        check_filenames: true
