@@ -74,7 +74,7 @@ parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx) {
     if (!bcs_read_u32_from_uleb128(buf, &payload_variant)) {
         return PAYLOAD_VARIANT_READ_ERROR;
     }
-    if (payload_variant != PAYLOAD_ENTRY_FUNCTION && payload_variant != PAYLOAD_SCRIPT) {
+    if (payload_variant != PAYLOAD_ENTRY_FUNCTION && payload_variant != PAYLOAD_SCRIPT && payload_variant != PAYLOAD_MULTISIG) {
         return PAYLOAD_UNDEFINED_ERROR;
     }
     tx->payload_variant = payload_variant;
@@ -92,6 +92,9 @@ parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx) {
             return PARSING_OK;
         case PAYLOAD_SCRIPT:
             // TODO: implement script fields parsing
+            return PARSING_OK;
+        case PAYLOAD_MULTISIG:
+            // TODO: implement multisig fields parsing
             return PARSING_OK;
         default:
             return PAYLOAD_UNDEFINED_ERROR;

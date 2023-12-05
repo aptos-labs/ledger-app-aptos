@@ -125,6 +125,7 @@ typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_MESSAGE = 2, TX_UNDEFINED = 
 typedef enum {
     PAYLOAD_SCRIPT = 0,
     PAYLOAD_ENTRY_FUNCTION = 2,
+    PAYLOAD_MULTISIG = 3,
     PAYLOAD_UNDEFINED = 1000
 } payload_variant_t;
 

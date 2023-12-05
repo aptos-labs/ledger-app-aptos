@@ -370,6 +370,13 @@ int ui_display_transaction() {
                              "%s [payload = SCRIPT]",
                              RAW_TRANSACTION_SALT);
                     break;
+                case PAYLOAD_MULTISIG:
+                    memset(g_struct, 0, sizeof(g_struct));
+                    snprintf(g_struct,
+                             sizeof(g_struct),
+                             "%s [payload = MULTISIG]",
+                             RAW_TRANSACTION_SALT);
+                    break;
                 default:
                     memset(g_struct, 0, sizeof(g_struct));
                     snprintf(g_struct,
