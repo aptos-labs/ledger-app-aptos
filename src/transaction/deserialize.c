@@ -74,7 +74,8 @@ parser_status_e tx_raw_deserialize(buffer_t *buf, transaction_t *tx) {
     if (!bcs_read_u32_from_uleb128(buf, &payload_variant)) {
         return PAYLOAD_VARIANT_READ_ERROR;
     }
-    if (payload_variant != PAYLOAD_ENTRY_FUNCTION && payload_variant != PAYLOAD_SCRIPT && payload_variant != PAYLOAD_MULTISIG) {
+    if (payload_variant != PAYLOAD_ENTRY_FUNCTION && payload_variant != PAYLOAD_SCRIPT &&
+        payload_variant != PAYLOAD_MULTISIG) {
         return PAYLOAD_UNDEFINED_ERROR;
     }
     tx->payload_variant = payload_variant;
