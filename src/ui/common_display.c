@@ -108,6 +108,13 @@ int ui_prepare_transaction() {
                              "%s [payload = SCRIPT]",
                              RAW_TRANSACTION_SALT);
                     break;
+                case PAYLOAD_MULTISIG:
+                    memset(g_tx_type, 0, sizeof(g_tx_type));
+                    snprintf(g_tx_type,
+                             sizeof(g_tx_type),
+                             "%s [payload = MULTISIG]",
+                             RAW_TRANSACTION_SALT);
+                    break;
                 default:
                     memset(g_tx_type, 0, sizeof(g_tx_type));
                     snprintf(g_tx_type,
