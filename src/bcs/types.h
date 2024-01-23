@@ -78,7 +78,8 @@ typedef struct {
 typedef enum {
     FUNC_UNKNOWN = 0,
     FUNC_APTOS_ACCOUNT_TRANSFER = 1,
-    FUNC_COIN_TRANSFER = 2
+    FUNC_COIN_TRANSFER = 2,
+    FUNC_APTOS_ACCOUNT_TRANSFER_COINS = 3,
 } entry_function_known_type_t;
 
 typedef struct {

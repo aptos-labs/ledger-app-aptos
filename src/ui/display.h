@@ -3,6 +3,7 @@
 #define UI_PREPARED -10
 
 extern char g_bip32_path[60];
+extern char g_tx_type[60];
 extern char g_address[67];
 extern char g_gas_fee[30];
 extern char g_struct[120];

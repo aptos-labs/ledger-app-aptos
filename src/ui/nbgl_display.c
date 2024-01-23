@@ -33,7 +33,7 @@
 
 static use_case_review_ctx_t blind_sign_ctx;
 
-nbgl_layoutTagValue_t pairs[5];
+nbgl_layoutTagValue_t pairs[6];
 nbgl_layoutTagValueList_t pairList;
 nbgl_pageInfoLongPress_t infoLongPress;
 

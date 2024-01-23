@@ -55,7 +55,7 @@ static void review_choice(bool confirm) {
 
 static void review_default_continue(void) {
     pairs[0].item = "Transaction Type";
-    pairs[0].value = g_struct;
+    pairs[0].value = g_tx_type;
     pairs[1].item = "Gas Fee";
     pairs[1].value = g_gas_fee;
 
@@ -71,13 +71,15 @@ static void review_default_continue(void) {
 }
 
 static void review_entry_function_continue(void) {
-    pairs[0].item = "Function";
-    pairs[0].value = g_function;
-    pairs[1].item = "Gas Fee";
-    pairs[1].value = g_gas_fee;
+    pairs[0].item = "Transaction Type";
+    pairs[0].value = g_tx_type;
+    pairs[1].item = "Function";
+    pairs[1].value = g_function;
+    pairs[2].item = "Gas Fee";
+    pairs[2].value = g_gas_fee;
 
     pairList.nbMaxLinesForValue = 0;
-    pairList.nbPairs = 2;
+    pairList.nbPairs = 3;
     pairList.pairs = pairs;
 
     infoLongPress.icon = &C_aptos_logo_64px;
@@ -89,7 +91,7 @@ static void review_entry_function_continue(void) {
 
 static void review_tx_aptos_account_transfer_continue(void) {
     pairs[0].item = "Transaction Type";
-    pairs[0].value = g_struct;
+    pairs[0].value = g_tx_type;
     pairs[1].item = "Function";
     pairs[1].value = g_function;
     pairs[2].item = "Receiver";
@@ -111,19 +113,21 @@ static void review_tx_aptos_account_transfer_continue(void) {
 }
 
 static void review_tx_coin_transfer_continue(void) {
-    pairs[0].item = "Function";
-    pairs[0].value = g_function;
-    pairs[1].item = "Coin Type";
-    pairs[1].value = g_struct;
-    pairs[2].item = "Receiver";
-    pairs[2].value = g_address;
-    pairs[3].item = "Amount";
-    pairs[3].value = g_amount;
-    pairs[4].item = "Gas Fee";
-    pairs[4].value = g_gas_fee;
+    pairs[0].item = "Transaction Type";
+    pairs[0].value = g_tx_type;
+    pairs[1].item = "Function";
+    pairs[1].value = g_function;
+    pairs[2].item = "Coin Type";
+    pairs[2].value = g_struct;
+    pairs[3].item = "Receiver";
+    pairs[3].value = g_address;
+    pairs[4].item = "Amount";
+    pairs[4].value = g_amount;
+    pairs[5].item = "Gas Fee";
+    pairs[5].value = g_gas_fee;
 
     pairList.nbMaxLinesForValue = 0;
-    pairList.nbPairs = 5;
+    pairList.nbPairs = 6;
     pairList.pairs = pairs;
 
     infoLongPress.icon = &C_aptos_logo_64px;

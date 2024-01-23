@@ -212,7 +212,7 @@ UX_STEP_NOCB(ux_display_tx_type_step,
              bnnn_paging,
              {
                  .title = "Transaction Type",
-                 .text = g_struct,
+                 .text = g_tx_type,
              });
 // Step with title/text for function
 UX_STEP_NOCB(ux_display_function_step,
@@ -292,13 +292,15 @@ UX_FLOW(ux_display_blind_short_message_flow, &ux_display_blind_warn_step, SEQUEN
 // FLOW to display entry_function transaction information:
 // #1 screen : warning icon + "Blind Signing"
 // #2 screen : eye icon + "Review Transaction"
-// #3 screen : display function name
-// #4 screen : display gas fee
-// #5 screen : approve button
-// #6 screen : reject button
+// #3 screen : display tx type
+// #4 screen : display function name
+// #5 screen : display gas fee
+// #6 screen : approve button
+// #7 screen : reject button
 UX_FLOW(ux_display_blind_tx_entry_function_flow,
         &ux_display_blind_warn_step,
         &ux_display_review_step,
+        &ux_display_tx_type_step,
         &ux_display_function_step,
         &ux_display_gas_fee_step,
         &ux_display_approve_step,
@@ -325,15 +327,17 @@ UX_FLOW(ux_display_tx_aptos_account_transfer_flow,
 
 // FLOW to display coin_transfer transaction information:
 // #1 screen : eye icon + "Review Transaction"
-// #2 screen : display function name
-// #3 screen : display coin type
-// #4 screen : display destination address
-// #5 screen : display amount
-// #6 screen : display gas fee
-// #7 screen : approve button
-// #8 screen : reject button
+// #2 screen : display tx type
+// #3 screen : display function name
+// #4 screen : display coin type
+// #5 screen : display destination address
+// #6 screen : display amount
+// #7 screen : display gas fee
+// #8 screen : approve button
+// #9 screen : reject button
 UX_FLOW(ux_display_tx_coin_transfer_flow,
         &ux_display_review_step,
+        &ux_display_tx_type_step,
         &ux_display_function_step,
         &ux_display_coin_type_step,
         &ux_display_receiver_step,

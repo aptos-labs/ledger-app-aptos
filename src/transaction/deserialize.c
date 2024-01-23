@@ -174,6 +174,7 @@ parser_status_e entry_function_payload_deserialize(buffer_t *buf, transaction_t 
         case FUNC_APTOS_ACCOUNT_TRANSFER:
             return aptos_account_transfer_function_deserialize(buf, tx);
         case FUNC_COIN_TRANSFER:
+        case FUNC_APTOS_ACCOUNT_TRANSFER_COINS:
             return coin_transfer_function_deserialize(buf, tx);
         default:
             return PARSING_OK;
@@ -238,7 +239,8 @@ parser_status_e coin_transfer_function_deserialize(buffer_t *buf, transaction_t 
         return PAYLOAD_UNDEFINED_ERROR;
     }
     entry_function_payload_t *payload = &tx->payload.entry_function;
-    if (payload->known_type != FUNC_COIN_TRANSFER) {
+    if (payload->known_type != FUNC_COIN_TRANSFER &&
+        payload->known_type != FUNC_APTOS_ACCOUNT_TRANSFER_COINS) {
         return PAYLOAD_UNDEFINED_ERROR;
     }
 
@@ -247,7 +249,7 @@ parser_status_e coin_transfer_function_deserialize(buffer_t *buf, transaction_t 
         return TYPE_ARGS_SIZE_READ_ERROR;
     }
     if (payload->args.ty_size != 1) {
-        return -TYPE_ARGS_SIZE_UNEXPECTED_ERROR;
+        return TYPE_ARGS_SIZE_UNEXPECTED_ERROR;
     }
 
     uint32_t ty_arg_variant = TYPE_TAG_UNDEFINED;
@@ -342,6 +344,12 @@ entry_function_known_type_t determine_function_type(transaction_t *tx) {
         bcs_cmp_bytes(&tx->payload.entry_function.module_id.name, "coin", 4) &&
         bcs_cmp_bytes(&tx->payload.entry_function.function_name, "transfer", 8)) {
         return FUNC_COIN_TRANSFER;
+    }
+
+    if (tx->payload.entry_function.module_id.address[ADDRESS_LEN - 1] == 0x01 &&
+        bcs_cmp_bytes(&tx->payload.entry_function.module_id.name, "aptos_account", 13) &&
+        bcs_cmp_bytes(&tx->payload.entry_function.function_name, "transfer_coins", 14)) {
+        return FUNC_APTOS_ACCOUNT_TRANSFER_COINS;
     }
 
     return FUNC_UNKNOWN;

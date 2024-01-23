@@ -2,7 +2,7 @@
 
 #include "nbgl_use_case.h"
 
-extern nbgl_layoutTagValue_t pairs[5];
+extern nbgl_layoutTagValue_t pairs[6];
 extern nbgl_layoutTagValueList_t pairList;
 extern nbgl_pageInfoLongPress_t infoLongPress;
 

@@ -36,6 +36,7 @@
 #include "../common/user_format.h"
 
 char g_bip32_path[60];
+char g_tx_type[60];
 char g_address[67];
 char g_gas_fee[30];
 char g_struct[120];
@@ -101,27 +102,27 @@ int ui_prepare_transaction() {
                 case PAYLOAD_ENTRY_FUNCTION:
                     return ui_display_entry_function();
                 case PAYLOAD_SCRIPT:
-                    memset(g_struct, 0, sizeof(g_struct));
-                    snprintf(g_struct,
-                             sizeof(g_struct),
+                    memset(g_tx_type, 0, sizeof(g_tx_type));
+                    snprintf(g_tx_type,
+                             sizeof(g_tx_type),
                              "%s [payload = SCRIPT]",
                              RAW_TRANSACTION_SALT);
                     break;
                 default:
-                    memset(g_struct, 0, sizeof(g_struct));
-                    snprintf(g_struct,
-                             sizeof(g_struct),
+                    memset(g_tx_type, 0, sizeof(g_tx_type));
+                    snprintf(g_tx_type,
+                             sizeof(g_tx_type),
                              "%s [payload = UNKNOWN]",
                              RAW_TRANSACTION_SALT);
                     break;
             }
         } else if (transaction->tx_variant == TX_RAW_WITH_DATA) {
-            memset(g_struct, 0, sizeof(g_struct));
-            snprintf(g_struct, sizeof(g_struct), RAW_TRANSACTION_WITH_DATA_SALT);
+            memset(g_tx_type, 0, sizeof(g_tx_type));
+            snprintf(g_tx_type, sizeof(g_tx_type), RAW_TRANSACTION_WITH_DATA_SALT);
         }
     } else {
-        memset(g_struct, 0, sizeof(g_struct));
-        snprintf(g_struct, sizeof(g_struct), "unknown data type");
+        memset(g_tx_type, 0, sizeof(g_tx_type));
+        snprintf(g_tx_type, sizeof(g_tx_type), "unknown data type");
     }
 
     return UI_PREPARED;
@@ -154,8 +155,12 @@ int ui_prepare_entry_function() {
         case FUNC_APTOS_ACCOUNT_TRANSFER:
             return ui_display_tx_aptos_account_transfer();
         case FUNC_COIN_TRANSFER:
+        case FUNC_APTOS_ACCOUNT_TRANSFER_COINS:
             return ui_display_tx_coin_transfer();
         default:
+            memset(g_tx_type, 0, sizeof(g_tx_type));
+            snprintf(g_tx_type, sizeof(g_tx_type), "Function call");
+            PRINTF("Tx Type: %s\n", g_tx_type);
             break;
     }
 
@@ -167,9 +172,9 @@ int ui_prepare_tx_aptos_account_transfer() {
         &G_context.tx_info.transaction.payload.entry_function.args.transfer;
 
     // For well-known functions, display the transaction type in human-readable format
-    memset(g_struct, 0, sizeof(g_struct));
-    snprintf(g_struct, sizeof(g_struct), "APT transfer");
-    PRINTF("Tx Type: %s\n", g_struct);
+    memset(g_tx_type, 0, sizeof(g_tx_type));
+    snprintf(g_tx_type, sizeof(g_tx_type), "APT transfer");
+    PRINTF("Tx Type: %s\n", g_tx_type);
 
     memset(g_address, 0, sizeof(g_address));
     if (0 > format_prefixed_hex(transfer->receiver, ADDRESS_LEN, g_address, sizeof(g_address))) {
@@ -192,6 +197,11 @@ int ui_prepare_tx_coin_transfer() {
     agrs_coin_trasfer_t *transfer =
         &G_context.tx_info.transaction.payload.entry_function.args.coin_transfer;
     char transfer_ty_coin_address_hex[67] = {0};
+
+    // For well-known functions, display the transaction type in human-readable format
+    memset(g_tx_type, 0, sizeof(g_tx_type));
+    snprintf(g_tx_type, sizeof(g_tx_type), "Coin transfer");
+    PRINTF("Tx Type: %s\n", g_tx_type);
 
     // Be sure to display at least 1 byte, even if it is zero
     size_t leading_zeros = count_leading_zeros(transfer->ty_coin.address, ADDRESS_LEN - 1);
