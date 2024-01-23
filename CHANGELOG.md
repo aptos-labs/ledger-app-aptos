@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.6] - 2023-10-06
+## [0.6.9] - 2024-01-23
 
 ### Added
 
@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Refactor BAGL UI (display, menu, settings).
   - Implement NBGL UI (display, menu, settings).
   - Add Aptos icon for Ledger Stax.
+- Expand the displayed info:
+  - Parse `0x1::aptos_account::transfer_coins` function
+  - Now show "Transaction Type" for all entry_function calls
+  - Add support for multisig payload variant
 - Add new tests.
 
 ### Fixed
