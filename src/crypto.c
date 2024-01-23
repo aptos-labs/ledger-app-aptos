@@ -98,7 +98,11 @@ cx_err_t crypto_sign_message() {
     }
 
     size_t size;
-    cx_ecdomain_parameters_length(private_key.curve, &size);
+    error = cx_ecdomain_parameters_length(private_key.curve, &size);
+    if (error != CX_OK) {
+        explicit_bzero(&private_key, sizeof(private_key));
+        return error;
+    }
     G_context.tx_info.signature_len = 2 * size;
 
     PRINTF("Signature: %.*H\n", G_context.tx_info.signature_len, G_context.tx_info.signature);

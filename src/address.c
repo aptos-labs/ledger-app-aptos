@@ -40,9 +40,18 @@ bool address_from_pubkey(const uint8_t public_key[static 32], uint8_t *out, size
     if (error != CX_OK) {
         return false;
     }
-    cx_hash_update((cx_hash_t *) &sha3, public_key, 32);
-    cx_hash_update((cx_hash_t *) &sha3, &signature_scheme_id, 1);
-    cx_hash_final((cx_hash_t *) &sha3, address);
+    error = cx_hash_update((cx_hash_t *) &sha3, public_key, 32);
+    if (error != CX_OK) {
+        return false;
+    }
+    error = cx_hash_update((cx_hash_t *) &sha3, &signature_scheme_id, 1);
+    if (error != CX_OK) {
+        return false;
+    }
+    error = cx_hash_final((cx_hash_t *) &sha3, address);
+    if (error != CX_OK) {
+        return false;
+    }
 
     memmove(out, address, ADDRESS_LEN);
 
