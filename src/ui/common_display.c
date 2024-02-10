@@ -87,6 +87,8 @@ int ui_prepare_transaction() {
 
     if (transaction->tx_variant == TX_MESSAGE) {
         return ui_display_message();
+    } else if (transaction->tx_variant == TX_RAW_MESSAGE) {
+        return ui_display_raw_message();
     } else if (transaction->tx_variant != TX_UNDEFINED) {
         uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
         memset(g_gas_fee, 0, sizeof(g_gas_fee));

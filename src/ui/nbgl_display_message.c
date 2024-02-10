@@ -21,6 +21,7 @@
 #include <string.h>   // memset
 
 #include "os.h"
+#include "format.h"
 #include "glyphs.h"
 #include "nbgl_use_case.h"
 
@@ -31,6 +32,8 @@
 #include "../globals.h"
 #include "action/validate.h"
 #include "../common/user_format.h"
+
+#define DOTS "[...]"
 
 static void confirm_message_rejection(void) {
     validate_transaction(false);
@@ -69,6 +72,21 @@ static void review_message_continue(void) {
     nbgl_useCaseStaticReview(&pairList, &infoLongPress, "Reject message", review_choice);
 }
 
+static void review_raw_message_continue(void) {
+    pairs[0].item = "Raw message";
+    pairs[0].value = g_struct;
+
+    pairList.nbMaxLinesForValue = 0;
+    pairList.nbPairs = 1;
+    pairList.pairs = pairs;
+
+    infoLongPress.icon = &C_Message_64px;
+    infoLongPress.text = "Sign message";
+    infoLongPress.longPressText = "Hold to sign";
+
+    nbgl_useCaseStaticReview(&pairList, &infoLongPress, "Reject message", review_choice);
+}
+
 int ui_display_message() {
     if (is_str_interrupted((const char *) G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len)) {
         nbgl_useCaseReviewVerify(&C_Message_64px,
@@ -83,6 +101,38 @@ int ui_display_message() {
                                 NULL,
                                 "Reject message",
                                 review_message_continue,
+                                ask_message_rejection_confirmation);
+    }
+
+    return 0;
+}
+
+int ui_display_raw_message() {
+    memset(g_struct, 0, sizeof(g_struct));
+    const bool short_enough = sizeof(g_struct) >= 2 * G_context.tx_info.raw_tx_len + 1;
+    if (short_enough) {
+        format_hex(G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len,
+                   g_struct, sizeof(g_struct));
+    } else {
+        const size_t cropped_bytes_len = (sizeof(g_struct) - sizeof(DOTS)) / 2;
+        format_hex(G_context.tx_info.raw_tx, cropped_bytes_len,
+                   g_struct, sizeof(g_struct));
+        strcpy(g_struct + cropped_bytes_len * 2, DOTS);
+    }
+
+    if (!short_enough) {
+        nbgl_useCaseReviewVerify(&C_Message_64px,
+                                 "Review message",
+                                 NULL,
+                                 "Reject message",
+                                 review_raw_message_continue,
+                                 ask_message_rejection_confirmation);
+    } else {
+        nbgl_useCaseReviewStart(&C_Message_64px,
+                                "Review message",
+                                NULL,
+                                "Reject message",
+                                review_raw_message_continue,
                                 ask_message_rejection_confirmation);
     }
 

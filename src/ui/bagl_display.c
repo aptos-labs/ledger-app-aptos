@@ -24,6 +24,7 @@
 #include "ux.h"
 #include "glyphs.h"
 #include "io.h"
+#include "format.h"
 
 #include "bagl_display.h"
 #include "display.h"
@@ -207,6 +208,13 @@ UX_STEP_NOCB(ux_display_short_msg_step,
                  .title = "Message",
                  .text = g_struct,
              });
+// Step with title/text for message in raw form
+UX_STEP_NOCB(ux_display_raw_msg_step,
+             bnnn_paging,
+             {
+                 .title = "Raw message",
+                 .text = g_struct,
+             });
 // Step with title/text for transaction type
 UX_STEP_NOCB(ux_display_tx_type_step,
              bnnn_paging,
@@ -288,6 +296,18 @@ UX_FLOW(ux_display_blind_message_flow, &ux_display_blind_warn_step, SEQUENCE_MES
 UX_FLOW(ux_display_short_message_flow, SEQUENCE_SHORT_MESSAGE);
 // preceding screen : warning icon + "Blind Signing"
 UX_FLOW(ux_display_blind_short_message_flow, &ux_display_blind_warn_step, SEQUENCE_SHORT_MESSAGE);
+
+// FLOW to display message information in raw form:
+// #1 screen : eye icon + "Review Message"
+// #2 screen : display raw message
+// #3 screen : approve button
+// #4 screen : reject button
+#define SEQUENCE_RAW_MESSAGE                                                         \
+    &ux_display_review_msg_step, &ux_display_raw_msg_step, &ux_display_approve_step, \
+        &ux_display_reject_step
+UX_FLOW(ux_display_raw_message_flow, SEQUENCE_RAW_MESSAGE);
+// preceding screen : warning icon + "Blind Signing"
+UX_FLOW(ux_display_blind_raw_message_flow, &ux_display_blind_warn_step, SEQUENCE_RAW_MESSAGE);
 
 // FLOW to display entry_function transaction information:
 // #1 screen : warning icon + "Blind Signing"
@@ -385,6 +405,29 @@ int ui_display_message() {
         } else {
             ui_flow_verified_display(ux_display_blind_short_message_flow);
         }
+    }
+
+    return 0;
+}
+
+int ui_display_raw_message() {
+    memset(g_struct, 0, sizeof(g_struct));
+    const bool short_enough = sizeof(g_struct) >= 2 * G_context.tx_info.raw_tx_len + 1;
+    if (short_enough) {
+        format_hex(G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len,
+                   g_struct, sizeof(g_struct));
+    } else {
+        const size_t cropped_bytes_len = (sizeof(g_struct) - sizeof(DOTS)) / 2;
+        format_hex(G_context.tx_info.raw_tx, cropped_bytes_len,
+                   g_struct, sizeof(g_struct));
+        strcpy(g_struct + cropped_bytes_len * 2, DOTS);
+    }
+    PRINTF("Message: %s\n", g_struct);
+
+    if (short_enough) {
+        ui_flow_display(ux_display_raw_message_flow);
+    } else {
+        ui_flow_verified_display(ux_display_blind_raw_message_flow);
     }
 
     return 0;

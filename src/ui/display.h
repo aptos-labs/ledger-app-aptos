@@ -29,6 +29,7 @@ int ui_display_transaction(void);
 int ui_prepare_transaction(void);
 
 int ui_display_message(void);
+int ui_display_raw_message(void);
 
 int ui_display_entry_function(void);
 int ui_prepare_entry_function(void);

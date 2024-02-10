@@ -121,7 +121,13 @@ typedef struct {
     fixed_bytes_t *args;
 } script_payload_t;
 
-typedef enum { TX_RAW = 0, TX_RAW_WITH_DATA = 1, TX_MESSAGE = 2, TX_UNDEFINED = 1000 } tx_variant_t;
+typedef enum {
+    TX_RAW = 0,
+    TX_RAW_WITH_DATA = 1,
+    TX_MESSAGE = 2,
+    TX_RAW_MESSAGE = 3,
+    TX_UNDEFINED = 1000
+} tx_variant_t;
 
 typedef enum {
     PAYLOAD_SCRIPT = 0,
