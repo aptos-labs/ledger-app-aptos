@@ -37,7 +37,7 @@ def test_sign_tx_short_tx(firmware, backend, navigator, test_name):
                                                       ROOT_SCREENSHOT_PATH,
                                                       test_name)
         else:
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                       [NavInsID.USE_CASE_REVIEW_CONFIRM,
                                                        NavInsID.USE_CASE_STATUS_DISMISS],
                                                       "Hold to sign",
@@ -77,14 +77,14 @@ def test_blind_sign_tx_long_tx(firmware, backend, navigator, test_name):
                                                       ROOT_SCREENSHOT_PATH,
                                                       test_name + "/part1")
         else:
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                       [NavInsID.USE_CASE_CHOICE_CONFIRM,
                                                        NavInsID.USE_CASE_STATUS_DISMISS],
                                                       "Enable blind signing",
                                                       ROOT_SCREENSHOT_PATH,
                                                       test_name + "/part0",
                                                       screen_change_after_last_instruction=False)
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                       [NavInsID.USE_CASE_REVIEW_CONFIRM,
                                                        NavInsID.USE_CASE_STATUS_DISMISS],
                                                       "Hold to sign",
@@ -118,7 +118,7 @@ def test_sign_tx_refused(firmware, backend, navigator, test_name):
         assert len(e.value.data) == 0
     else:
         for i in range(4):
-            instructions = [NavInsID.USE_CASE_REVIEW_TAP] * i
+            instructions = [NavInsID.SWIPE_CENTER_TO_LEFT] * i
             instructions += [NavInsID.USE_CASE_REVIEW_REJECT,
                              NavInsID.USE_CASE_CHOICE_CONFIRM,
                              NavInsID.USE_CASE_STATUS_DISMISS]
@@ -158,7 +158,7 @@ def test_sign_tx_short_msg(firmware, backend, navigator, test_name):
                                                       ROOT_SCREENSHOT_PATH,
                                                       test_name)
         else:
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                       [NavInsID.USE_CASE_REVIEW_CONFIRM,
                                                        NavInsID.USE_CASE_STATUS_DISMISS],
                                                       "Hold to sign",
@@ -197,7 +197,7 @@ def test_sign_short_raw_msg(firmware, backend, navigator, test_name):
                                                       ROOT_SCREENSHOT_PATH,
                                                       test_name)
         else:
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                       [NavInsID.USE_CASE_REVIEW_CONFIRM,
                                                        NavInsID.USE_CASE_STATUS_DISMISS],
                                                       "Hold to sign",
@@ -238,14 +238,14 @@ def test_sign_long_raw_msg(firmware, backend, navigator, test_name):
                                                         ROOT_SCREENSHOT_PATH,
                                                         test_name + "/part1")
         else:
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                         [NavInsID.USE_CASE_CHOICE_CONFIRM,
                                                         NavInsID.USE_CASE_STATUS_DISMISS],
                                                         "Enable blind signing",
                                                         ROOT_SCREENSHOT_PATH,
                                                         test_name + "/part0",
                                                         screen_change_after_last_instruction=False)
-            navigator.navigate_until_text_and_compare(NavInsID.USE_CASE_REVIEW_TAP,
+            navigator.navigate_until_text_and_compare(NavInsID.SWIPE_CENTER_TO_LEFT,
                                                         [NavInsID.USE_CASE_REVIEW_CONFIRM,
                                                         NavInsID.USE_CASE_STATUS_DISMISS],
                                                         "Hold to sign",

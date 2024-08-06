@@ -12,4 +12,4 @@ def test_get_app_and_version(backend, backend_name):
     app_name, version = unpack_get_app_and_version_response(response.data)
 
     assert app_name == "Aptos"
-    assert version == "0.6.9"
+    assert version == "0.6.10"
