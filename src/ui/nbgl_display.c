@@ -33,58 +33,54 @@
 
 static use_case_review_ctx_t blind_sign_ctx;
 
-nbgl_layoutTagValue_t pairs[6];
-nbgl_layoutTagValueList_t pairList;
-nbgl_pageInfoLongPress_t infoLongPress;
-
-static void blind_sign_continue() {
-    nbgl_useCaseReviewStart(blind_sign_ctx.icon,
-                            blind_sign_ctx.review_title,
-                            blind_sign_ctx.review_sub_title,
-                            blind_sign_ctx.reject_text,
-                            blind_sign_ctx.continue_callback,
-                            blind_sign_ctx.reject_callback);
-}
+nbgl_contentTagValue_t pairs[6];
+nbgl_contentTagValueList_t pair_list;
 
 static void blind_sign_info() {
-    nbgl_useCaseReviewStart(&C_round_warning_64px,
-                            "Blind Signing",
-                            "This operation cannot be\nsecurely interpreted by\nLedger.\n"
-                            "It might put your assets\nat risk.",
-                            blind_sign_ctx.reject_text,
-                            blind_sign_continue,
-                            blind_sign_ctx.reject_callback);
+    nbgl_useCaseReviewBlindSigning(blind_sign_ctx.operation_type,
+                                   blind_sign_ctx.tag_value_list,
+                                   blind_sign_ctx.icon,
+                                   blind_sign_ctx.review_title,
+                                   blind_sign_ctx.review_sub_title,
+                                   blind_sign_ctx.finish_title,
+                                   blind_sign_ctx.tip_box,
+                                   blind_sign_ctx.choice_callback);
 }
 
 static void blind_sign_choice(bool enable) {
     if (enable) {
         settings_allow_blind_signing_change(1);
-        nbgl_useCaseStatus("BLIND SIGNING\nENABLED", true, blind_sign_info);
+        nbgl_useCaseStatus("Blind signing enabled", true, blind_sign_info);
     } else {
-        blind_sign_ctx.reject_callback();
+        blind_sign_ctx.choice_callback(false);
     }
 }
 
-void nbgl_useCaseReviewVerify(const nbgl_icon_details_t *icon,
+void nbgl_useCaseReviewVerify(nbgl_operationType_t operation_type,
+                              const nbgl_contentTagValueList_t *tag_value_list,
+                              const nbgl_icon_details_t *icon,
                               const char *review_title,
                               const char *review_sub_title,
-                              const char *reject_text,
-                              nbgl_callback_t continue_callback,
-                              nbgl_callback_t reject_callback) {
+                              const char *finish_title,
+                              const nbgl_tipBox_t *tip_box,
+                              nbgl_choiceCallback_t choice_callback) {
+    blind_sign_ctx.operation_type = operation_type;
+    blind_sign_ctx.tag_value_list = tag_value_list;
     blind_sign_ctx.icon = icon;
     blind_sign_ctx.review_title = review_title;
     blind_sign_ctx.review_sub_title = review_sub_title;
-    blind_sign_ctx.reject_text = reject_text;
-    blind_sign_ctx.continue_callback = continue_callback;
-    blind_sign_ctx.reject_callback = reject_callback;
+    blind_sign_ctx.finish_title = finish_title;
+    blind_sign_ctx.tip_box = tip_box;
+    blind_sign_ctx.choice_callback = choice_callback;
+
     if (N_storage.settings.allow_blind_signing) {
         blind_sign_info();
     } else {
-        nbgl_useCaseChoice(&C_round_warning_64px,
-                           "Enable blind signing to\nauthorize this\noperation",
+        nbgl_useCaseChoice(&C_Warning_64px,
+                           "Enable blind signing to authorize this operation?",
                            NULL,
                            "Enable blind signing",
-                           reject_text,
+                           "Reject operation",
                            blind_sign_choice);
     }
 }

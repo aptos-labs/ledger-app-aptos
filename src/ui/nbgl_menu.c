@@ -43,36 +43,36 @@ static const char* const INFO_CONTENTS[] = {APPVERSION,
                                             "Pontem Network",
                                             "(c) 2022 Pontem Network"};
 
-static nbgl_layoutSwitch_t g_switches[SWITCHES_COUNT];
+static nbgl_contentSwitch_t g_switches[SWITCHES_COUNT];
 
-static bool settings_nav_callback(uint8_t page, nbgl_pageContent_t* content) {
-    switch (page) {
-        case 0:
-            content->type = INFOS_LIST;
-            content->infosList.nbInfos = ARRAYLEN(INFO_TYPES);
-            content->infosList.infoTypes = (const char**) INFO_TYPES;
-            content->infosList.infoContents = (const char**) INFO_CONTENTS;
+static const nbgl_contentInfoList_t g_infos_list = {
+    .infoTypes = INFO_TYPES,
+    .infoContents = INFO_CONTENTS,
+    .nbInfos = ARRAYLEN(INFO_TYPES),
+};
 
-            return true;
-        case 1:
-            if (N_storage.settings.allow_blind_signing == 0) {
-                g_switches[SWITCH_BLIND_SIGNING].initState = OFF_STATE;
-            } else {
-                g_switches[SWITCH_BLIND_SIGNING].initState = ON_STATE;
-            }
-            content->type = SWITCHES_LIST;
-            content->switchesList.nbSwitches = SWITCHES_COUNT;
-            content->switchesList.switches = g_switches;
+static void settings_controls_callback(int token, uint8_t index, int page);
 
-            return true;
-        default:
-            break;
+static const nbgl_content_t g_setting_contents_list[] = {
+    {
+        .type = SWITCHES_LIST,
+        .content = {
+            .switchesList = {
+                .switches = g_switches,
+                .nbSwitches = ARRAYLEN(g_switches),
+            },
+        },
+        .contentActionCallback = settings_controls_callback,
     }
+};
 
-    return false;
-}
+static const nbgl_genericContents_t g_setting_contents = {
+    .callbackCallNeeded = false,
+    .contentsList = g_setting_contents_list,
+    .nbContents = 1,
+};
 
-static void settings_controls_callback(int token, uint8_t index) {
+static void settings_controls_callback(int token, uint8_t index, __attribute__ ((unused)) int page) {
     switch (token) {
         case TOKEN_BLIND_SIGNING:
             if (index == 0 || index == 1) {
@@ -89,22 +89,20 @@ void app_quit(void) {
 }
 
 void ui_menu_main(void) {
-    nbgl_useCaseHome(APPNAME, &C_aptos_logo_64px, NULL, true, ui_menu_settings, app_quit);
-}
-
-void ui_menu_settings(void) {
     g_switches[SWITCH_BLIND_SIGNING].text = "Blind signing";
     g_switches[SWITCH_BLIND_SIGNING].subText = "Enable blind signing";
     g_switches[SWITCH_BLIND_SIGNING].token = TOKEN_BLIND_SIGNING;
-    g_switches[SWITCH_BLIND_SIGNING].tuneId = TUNE_TAP_CASUAL;
+    g_switches[SWITCH_BLIND_SIGNING].initState =
+        N_storage.settings.allow_blind_signing == 0 ? OFF_STATE : ON_STATE;
 
-    nbgl_useCaseSettings(APPNAME " settings",
-                         0,
-                         SETTINGS_PAGE_NUMBER,
-                         false,
-                         ui_menu_main,
-                         settings_nav_callback,
-                         settings_controls_callback);
+    nbgl_useCaseHomeAndSettings(APPNAME,
+                                &C_aptos_logo_64px,
+                                NULL,
+                                INIT_HOME_PAGE,
+                                &g_setting_contents,
+                                &g_infos_list,
+                                NULL,
+                                ui_menu_main);
 }
 
 #endif

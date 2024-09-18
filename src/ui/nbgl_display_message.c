@@ -35,73 +35,40 @@
 
 #define DOTS "[...]"
 
-static void confirm_message_rejection(void) {
-    validate_transaction(false);
-    nbgl_useCaseStatus("Message rejected", false, ui_menu_main);
-}
-
-static void ask_message_rejection_confirmation(void) {
-    nbgl_useCaseConfirm("Reject message?",
-                        NULL,
-                        "Yes, Reject",
-                        "Go back to message",
-                        confirm_message_rejection);
-}
-
 static void review_choice(bool confirm) {
     if (confirm) {
         validate_transaction(true);
-        nbgl_useCaseStatus("MESSAGE\nSIGNED", true, ui_menu_main);
+        nbgl_useCaseStatus("Message signed", true, ui_menu_main);
     } else {
-        ask_message_rejection_confirmation();
+        nbgl_useCaseStatus("Message rejected", false, ui_menu_main);
     }
 }
 
-static void review_message_continue(void) {
+int ui_display_message() {
     pairs[0].item = "Message";
     pairs[0].value = (const char *) G_context.tx_info.raw_tx;
 
-    pairList.nbMaxLinesForValue = 0;
-    pairList.nbPairs = 1;
-    pairList.pairs = pairs;
+    pair_list.nbMaxLinesForValue = 0;
+    pair_list.nbPairs = 1;
+    pair_list.pairs = pairs;
 
-    infoLongPress.icon = &C_Message_64px;
-    infoLongPress.text = "Sign message";
-    infoLongPress.longPressText = "Hold to sign";
-
-    nbgl_useCaseStaticReview(&pairList, &infoLongPress, "Reject message", review_choice);
-}
-
-static void review_raw_message_continue(void) {
-    pairs[0].item = "Raw message";
-    pairs[0].value = g_struct;
-
-    pairList.nbMaxLinesForValue = 0;
-    pairList.nbPairs = 1;
-    pairList.pairs = pairs;
-
-    infoLongPress.icon = &C_Message_64px;
-    infoLongPress.text = "Sign message";
-    infoLongPress.longPressText = "Hold to sign";
-
-    nbgl_useCaseStaticReview(&pairList, &infoLongPress, "Reject message", review_choice);
-}
-
-int ui_display_message() {
     if (is_str_interrupted((const char *) G_context.tx_info.raw_tx, G_context.tx_info.raw_tx_len)) {
-        nbgl_useCaseReviewVerify(&C_Message_64px,
+        nbgl_useCaseReviewVerify(TYPE_MESSAGE,
+                                 &pair_list,
+                                 &C_Review_64px,
                                  "Review message",
                                  NULL,
-                                 "Reject message",
-                                 review_message_continue,
-                                 ask_message_rejection_confirmation);
+                                 "Sign message?",
+                                 NULL,
+                                 review_choice);
     } else {
-        nbgl_useCaseReviewStart(&C_Message_64px,
-                                "Review message",
-                                NULL,
-                                "Reject message",
-                                review_message_continue,
-                                ask_message_rejection_confirmation);
+        nbgl_useCaseReview(TYPE_MESSAGE,
+                           &pair_list,
+                           &C_Review_64px,
+                           "Review message",
+                           NULL,
+                           "Sign message?",
+                           review_choice);
     }
 
     return 0;
@@ -120,20 +87,30 @@ int ui_display_raw_message() {
         strcpy(g_struct + cropped_bytes_len * 2, DOTS);
     }
 
+    pairs[0].item = "Raw message";
+    pairs[0].value = g_struct;
+
+    pair_list.nbMaxLinesForValue = 0;
+    pair_list.nbPairs = 1;
+    pair_list.pairs = pairs;
+
     if (!short_enough) {
-        nbgl_useCaseReviewVerify(&C_Message_64px,
+        nbgl_useCaseReviewVerify(TYPE_MESSAGE,
+                                 &pair_list,
+                                 &C_Review_64px,
                                  "Review message",
                                  NULL,
-                                 "Reject message",
-                                 review_raw_message_continue,
-                                 ask_message_rejection_confirmation);
+                                 "Sign message?",
+                                 NULL,
+                                 review_choice);
     } else {
-        nbgl_useCaseReviewStart(&C_Message_64px,
-                                "Review message",
-                                NULL,
-                                "Reject message",
-                                review_raw_message_continue,
-                                ask_message_rejection_confirmation);
+        nbgl_useCaseReview(TYPE_MESSAGE,
+                           &pair_list,
+                           &C_Review_64px,
+                           "Review message",
+                           NULL,
+                           "Sign message?",
+                           review_choice);
     }
 
     return 0;

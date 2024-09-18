@@ -34,34 +34,27 @@
 
 static void confirm_address(bool choice) {
     validate_pubkey(choice);
-    nbgl_useCaseStatus(choice ? "ADDRESS\nVERIFIED" : "Address verification\ncanceled",
+    nbgl_useCaseStatus(choice ? "Address verified" : "Address verification canceled",
                        choice,
                        ui_menu_main);
-}
-
-static void confirm_address_rejection(void) {
-    confirm_address(false);
-}
-
-static void continue_review(void) {
-    pairs[0].item = "Derivation Path";
-    pairs[0].value = g_bip32_path;
-
-    pairList.nbMaxLinesForValue = 0;
-    pairList.nbPairs = 1;
-    pairList.pairs = pairs;
-    nbgl_useCaseAddressConfirmationExt(g_address, confirm_address, &pairList);
 }
 
 int ui_display_address() {
     const int ret = ui_prepare_address();
     if (ret == UI_PREPARED) {
-        nbgl_useCaseReviewStart(&C_aptos_logo_64px,
-                                "Verify Aptos\naddress",
-                                NULL,
-                                "Cancel",
-                                continue_review,
-                                confirm_address_rejection);
+        pairs[0].item = "Derivation path";
+        pairs[0].value = g_bip32_path;
+
+        pair_list.nbMaxLinesForValue = 0;
+        pair_list.nbPairs = 1;
+        pair_list.pairs = pairs;
+
+        nbgl_useCaseAddressReview(g_address,
+                                  &pair_list,
+                                  &C_aptos_logo_64px,
+                                  "Verify Aptos address",
+                                  NULL,
+                                  confirm_address);
         return 0;
     }
 

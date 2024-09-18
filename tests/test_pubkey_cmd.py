@@ -36,7 +36,7 @@ def test_get_public_key_confirm_accepted(firmware, backend, navigator, test_name
                                                       test_name)
         else:
             instructions = [
-                NavInsID.SWIPE_CENTER_TO_LEFT,
+                NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
                 NavIns(NavInsID.TOUCH, (200, 300)),
                 NavInsID.USE_CASE_ADDRESS_CONFIRMATION_EXIT_QR,
                 NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
@@ -85,7 +85,7 @@ def test_get_public_key_confirm_refused(firmware, backend, navigator, test_name)
                 NavInsID.USE_CASE_STATUS_DISMISS
             ],
             [
-                NavInsID.SWIPE_CENTER_TO_LEFT,
+                NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
                 NavInsID.USE_CASE_ADDRESS_CONFIRMATION_CANCEL,
                 NavInsID.USE_CASE_STATUS_DISMISS
             ]
