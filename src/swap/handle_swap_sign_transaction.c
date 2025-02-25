@@ -19,6 +19,7 @@ typedef struct swap_validated_s {
     // NOTE(jmartins): only needed for tokens
     char ticker[MAX_SWAP_TOKEN_LENGTH];
     uint64_t amount;
+    uint64_t fee;
     uint8_t recipient[ADDRESS_LEN];
 } swap_validated_t;
 
@@ -97,6 +98,11 @@ bool swap_copy_transaction_parameters(create_transaction_parameters_t* params) {
         return false;
     }
 
+    // Save the fee
+    if (!swap_str_to_u64(params->fee_amount, params->fee_amount_length, &swap_validated.fee)) {
+        return false;
+    }
+
     swap_validated.initialized = true;
 
     // Full reset the global variables
@@ -163,38 +169,47 @@ bool swap_check_validity() {
         return false;
     }
     // Validate it's and actual coin transfer type
-    if (G_context.tx_info.transaction.tx_variant != TX_RAW) {
+    transaction_t* transaction = &G_context.tx_info.transaction;
+    if (transaction->tx_variant != TX_RAW) {
         PRINTF("TX variant different from TX_RAW is not compatible with Swap.\n");
         return false;
     }
 
-    PRINTF("Payload variant: %d\n", G_context.tx_info.transaction.payload_variant);
-    if (G_context.tx_info.transaction.payload_variant != PAYLOAD_ENTRY_FUNCTION) {
+    PRINTF("Payload variant: %d\n", transaction->payload_variant);
+    if (transaction->payload_variant != PAYLOAD_ENTRY_FUNCTION) {
         PRINTF("Payload variant incompatible with Swap.\n");
         return false;
     }
 
-    // Differentiate between the different types of transactions
+    // Differentiate between the different types of transaction->
     uint64_t amount = 0;
     uint8_t* receiver;
-    switch (G_context.tx_info.transaction.payload.entry_function.known_type) {
+    uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
+    switch (transaction->payload.entry_function.known_type) {
         case FUNC_APTOS_ACCOUNT_TRANSFER:
-            amount = G_context.tx_info.transaction.payload.entry_function.args.transfer.amount;
-            receiver = G_context.tx_info.transaction.payload.entry_function.args.transfer.receiver;
+            amount = transaction->payload.entry_function.args.transfer.amount;
+            receiver = transaction->payload.entry_function.args.transfer.receiver;
             break;
         case FUNC_COIN_TRANSFER:
         case FUNC_APTOS_ACCOUNT_TRANSFER_COINS:
-            amount = G_context.tx_info.transaction.payload.entry_function.args.coin_transfer.amount;
+            amount = transaction->payload.entry_function.args.coin_transfer.amount;
             receiver =
-                G_context.tx_info.transaction.payload.entry_function.args.coin_transfer.receiver;
+                transaction->payload.entry_function.args.coin_transfer.receiver;
             break;
         default:
             PRINTF("Unknown function type\n");
             return false;
     }
 
+    // Validate amount
     if (!validate_swap_amount(amount)) {
         PRINTF("Amount on Transaction is different from validated package.\n");
+        return false;
+    }
+
+    // Validate fee
+    if (gas_fee_value != G_swap_validated.fee) {
+        PRINTF("Gas fee on Transaction is different from validated package.\n");
         return false;
     }
 
