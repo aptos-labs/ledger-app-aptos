@@ -184,7 +184,7 @@ bool swap_check_validity() {
     // Differentiate between the different types of transaction->
     uint64_t amount = 0;
     uint8_t* receiver;
-    uint64_t gas_fee_value = transaction->gas_unit_price * transaction->max_gas_amount;
+    uint64_t gas_fee_value = transaction->gas_unit_price;
     switch (transaction->payload.entry_function.known_type) {
         case FUNC_APTOS_ACCOUNT_TRANSFER:
             amount = transaction->payload.entry_function.args.transfer.amount;
