@@ -1,0 +1,13 @@
+[app]
+build_directory = "./"
+sdk = "C"
+devices = ["nanox", "nanos+", "stax", "flex"]
+
+[use_cases]
+debug = "DEBUG=1"
+
+[unit_tests]
+directory = "./unit-tests/"
+
+[pytest.standalone]
+directory = "./tests/"

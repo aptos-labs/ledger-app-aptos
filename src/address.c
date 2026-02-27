@@ -38,10 +38,9 @@ bool address_from_pubkey(const uint8_t public_key[static 32], uint8_t *out, size
     }
 
     cx_sha3_t sha3;
-    cx_sha3_init(&sha3, 256);
-    cx_hash_update((cx_hash_t *) &sha3, public_key, 32);
-    cx_hash_update((cx_hash_t *) &sha3, &signature_scheme_id, 1);
-    cx_hash_final((cx_hash_t *) &sha3, address);
+    cx_sha3_init_no_throw(&sha3, 256);
+    cx_hash_no_throw((cx_hash_t *) &sha3, 0, public_key, 32, NULL, 0);
+    cx_hash_no_throw((cx_hash_t *) &sha3, CX_LAST, &signature_scheme_id, 1, address, 32);
 
     debug_hex_print_raw("Address", address, 32);
 

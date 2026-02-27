@@ -7,78 +7,36 @@ on:
       - main
       - develop
   pull_request:
-    branches:
-      - main
-      - develop
 
 jobs:
-  nano_build:
-    name: Build Aptos application for NanoS, X and S+
-    strategy:
-      matrix:
-        include:
-          - SDK: "$NANOS_SDK"
-            artifact: aptos-app-nanos
-          - SDK: "$NANOX_SDK"
-            artifact: aptos-app-nanox
-          - SDK: "$NANOSP_SDK"
-            artifact: aptos-app-nanosp
+  build:
+    name: Build application
+    uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_build.yml@v1
+    with:
+      upload_app_binaries_artifact: compiled-app
+
+  ragger_tests:
+    name: Functional tests
+    needs: build
+    uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_ragger_tests.yml@v1
+    with:
+      download_app_binaries_artifact: compiled-app
+
+  unit_tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Build
-        run: |
-          git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          make BOLOS_SDK=${{ matrix.SDK }}
-
-      - name: Upload app binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.artifact }}
-          path: bin
-
-  job_scan_build:
-    name: Clang Static Analyzer
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v2
-
-      - name: Build with Clang Static Analyzer
-        run: |
-          make clean
-          scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build --status-bugs make default
-
-      - name: Upload scan result
-        uses: actions/upload-artifact@v2
-        if: failure()
-        with:
-          name: scan-build
-          path: scan-build
-
-  job_unit_test:
-    name: Unit test
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
-
-    steps:
-      - name: Install curl
-        run: apk add curl
-      - name: Clone
-        uses: actions/checkout@v2
       - name: Build unit tests
         run: |
           cd unit-tests/
           cmake -Bbuild -H. && make -C build && make -C build test
+
       - name: Generate code coverage
         run: |
           cd unit-tests/
@@ -88,116 +46,38 @@ jobs:
           lcov --directory . -b "$(realpath build/)" --remove coverage.info '*/unit-tests/*' -o coverage.info && \
           genhtml coverage.info -o coverage
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: code-coverage
           path: unit-tests/coverage
 
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./unit-tests/coverage.info
           flags: unittests
           name: codecov-app-aptos
-          fail_ci_if_error: true
-          verbose: true
+          fail_ci_if_error: false
 
-  job_generate_doc:
-    name: Generate project documentation
+  scan_build:
+    name: Clang Static Analyzer
     runs-on: ubuntu-latest
-
     container:
       image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: HTML documentation
-        run: doxygen .doxygen/Doxyfile
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: documentation
-          path: doc/html
-
-  job_functional_test_1:
-    name: Functional tests with LedgerComm (on Speculos)
-    strategy:
-      matrix:
-        include:
-          - model: nanos
-            SDK: "2.1"
-          - model: nanox
-            SDK: "2.0.2"
-          - model: nanosp
-            SDK: "1.0.3"
-    needs:
-      - nano_build
-    runs-on: ubuntu-latest
-
-    container:
-      image: ghcr.io/ledgerhq/speculos:latest
-      options: --entrypoint /bin/bash
-      ports:
-        - 9999:9999
-        - 42000:42000
-        - 43000:43000
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v2
-      - name: Download app binary
-        uses: actions/download-artifact@v2
-        with:
-          name: aptos-app-${{matrix.model}}
-          path: bin
-      - name: Install dependencies
+      - name: Build with Clang Static Analyzer
         run: |
-          apt update && apt install -qy gcc netcat  # /!\ needed when installing pysha3
-          pip install -r tests/ledgercomm/requirements.txt
-      - name: Run test
-        run: |
-          nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --button-port 42000 --automation-port 43000 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
-          until `nc -w5 -z -v 127.0.0.1 9999`; do sleep 1; done;
-          pytest --headless tests/ledgercomm/  --model=${{ matrix.model }}
+          make clean
+          scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build --status-bugs make default
 
-      - name: Upload Speculos log
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v2
+      - name: Upload scan result
+        uses: actions/upload-artifact@v4
+        if: failure()
         with:
-          name: speculos-log
-          path: speculos.log
-
-  job_functional_test_2:
-    name: Functional tests with Speculos only
-    strategy:
-      matrix:
-        include:
-          - model: nanos
-            SDK: "2.1"
-          - model: nanox
-            SDK: "2.0.2"
-          - model: nanosp
-            SDK: "1.0.3"
-    needs:
-      - nano_build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v2
-      - name: Download app binary
-        uses: actions/download-artifact@v2
-        with:
-          name: aptos-app-${{matrix.model}}
-          path: bin
-      - name: Install tests dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y qemu-user-static
-          pip install --extra-index-url https://test.pypi.org/simple/ -r tests/speculos/requirements.txt
-      - name: Run test
-        env:
-          CTEST_OUTPUT_ON_FAILURE: 1
-        run: pytest tests/speculos/ --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}
+          name: scan-build
+          path: scan-build

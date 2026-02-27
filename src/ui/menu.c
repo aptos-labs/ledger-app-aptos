@@ -1,3 +1,5 @@
+#ifdef HAVE_BAGL
+
 /*****************************************************************************
  *   Ledger App Boilerplate.
  *   (c) 2020 Ledger SAS.
@@ -58,3 +60,5 @@ UX_FLOW(ux_menu_about_flow, &ux_menu_info_step, &ux_menu_back_step, FLOW_LOOP);
 void ui_menu_about() {
     ux_flow_init(0, ux_menu_about_flow, NULL);
 }
+
+#endif  // HAVE_BAGL

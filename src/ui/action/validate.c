@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger App Aptos.
+ *   (c) 2022 Aptos Labs.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *  limitations under the License.
  *****************************************************************************/
 
-#include <stdbool.h>  // bool
+#include <stdbool.h>
 
 #include "validate.h"
 #include "../menu.h"
@@ -32,7 +32,9 @@ void ui_action_validate_pubkey(bool choice) {
         io_send_sw(SW_DENY);
     }
 
+#ifdef HAVE_BAGL
     ui_menu_main();
+#endif
 }
 
 void ui_action_validate_transaction(bool choice) {
@@ -50,5 +52,7 @@ void ui_action_validate_transaction(bool choice) {
         io_send_sw(SW_DENY);
     }
 
+#ifdef HAVE_BAGL
     ui_menu_main();
+#endif
 }

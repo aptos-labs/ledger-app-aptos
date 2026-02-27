@@ -1,6 +1,6 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
- *   (c) 2020 Ledger SAS.
+ *   Ledger App Aptos.
+ *   (c) 2022 Aptos Labs.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -26,25 +26,39 @@
 #include "common/buffer.h"
 #include "common/write.h"
 
+#ifdef HAVE_BAGL
 void io_seproxyhal_display(const bagl_element_t *element) {
     io_seproxyhal_display_default((bagl_element_t *) element);
 }
+#endif
 
 uint8_t io_event(uint8_t channel __attribute__((unused))) {
     switch (G_io_seproxyhal_spi_buffer[0]) {
         case SEPROXYHAL_TAG_BUTTON_PUSH_EVENT:
+#ifdef HAVE_BAGL
             UX_BUTTON_PUSH_EVENT(G_io_seproxyhal_spi_buffer);
+#endif
             break;
         case SEPROXYHAL_TAG_STATUS_EVENT:
-            if (G_io_apdu_media == IO_APDU_MEDIA_USB_HID &&  //
-                !(U4BE(G_io_seproxyhal_spi_buffer, 3) &      //
+            if (G_io_apdu_media == IO_APDU_MEDIA_USB_HID &&
+                !(U4BE(G_io_seproxyhal_spi_buffer, 3) &
                   SEPROXYHAL_TAG_STATUS_EVENT_FLAG_USB_POWERED)) {
                 THROW(EXCEPTION_IO_RESET);
             }
-            /* fallthrough */
+            __attribute__((fallthrough));
         case SEPROXYHAL_TAG_DISPLAY_PROCESSED_EVENT:
+#ifdef HAVE_BAGL
             UX_DISPLAYED_EVENT({});
+#endif
+#ifdef HAVE_NBGL
+            UX_DEFAULT_EVENT();
+#endif
             break;
+#ifdef HAVE_NBGL
+        case SEPROXYHAL_TAG_FINGER_EVENT:
+            UX_FINGER_EVENT(G_io_seproxyhal_spi_buffer);
+            break;
+#endif
         case SEPROXYHAL_TAG_TICKER_EVENT:
             UX_TICKER_EVENT(G_io_seproxyhal_spi_buffer, {});
             break;
@@ -83,18 +97,10 @@ uint16_t io_exchange_al(uint8_t channel, uint16_t tx_len) {
     return 0;
 }
 
-/**
- * Variable containing the length of the APDU response to send back.
- */
 static uint32_t G_output_len = 0;
-
-/**
- * IO state (READY, RECEIVING, WAITING).
- */
 static io_state_e G_io_state = READY;
 
 void io_init() {
-    // Reset length of APDU response
     G_output_len = 0;
     G_io_state = READY;
 }
@@ -125,7 +131,7 @@ int io_send_response(const buffer_t *rdata, uint16_t sw) {
     int ret = -1;
 
     if (rdata != NULL) {
-        if (rdata->size - rdata->offset > IO_APDU_BUFFER_SIZE - 2 ||  //
+        if (rdata->size - rdata->offset > IO_APDU_BUFFER_SIZE - 2 ||
             !buffer_copy(rdata, G_io_apdu_buffer, sizeof(G_io_apdu_buffer))) {
             return io_send_sw(SW_WRONG_RESPONSE_LENGTH);
         }

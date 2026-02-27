@@ -5,7 +5,9 @@
  */
 void ui_menu_main(void);
 
+#ifdef HAVE_BAGL
 /**
  * Show about submenu (copyright, date).
  */
 void ui_menu_about(void);
+#endif
