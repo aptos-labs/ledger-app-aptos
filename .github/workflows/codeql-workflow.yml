@@ -14,6 +14,9 @@ on:
       - '.github/workflows/*.yml'
       - 'tests/*'
 
+permissions:
+  contents: read
+
 jobs:
   analyse:
     name: Analyse
@@ -24,20 +27,27 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder:latest
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Clone
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
 
       - name: Build
+        env:
+          BOLOS_SDK: ${{ matrix.sdk }}
         run: |
-          make BOLOS_SDK=${{ matrix.sdk }}
+          make BOLOS_SDK="$BOLOS_SDK"
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@458d36d7d4f47d0dd16ca424c1d3cda0060f1360 # v3
