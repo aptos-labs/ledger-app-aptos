@@ -10,6 +10,9 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
 jobs:
   job_lint:
     name: Lint
@@ -17,10 +20,12 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
 
       - name: Lint
-        uses: DoozyX/clang-format-lint-action@v0.11
+        uses: DoozyX/clang-format-lint-action@84b814a54950e27ac65a62069802df099405ef77 # v0.11
         with:
           source: './src'
           extensions: 'h,c'
@@ -31,9 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Clone
-      uses: actions/checkout@v2
+      uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
       with:
         fetch-depth: 0
+        persist-credentials: false
     - name: Check misspellings
       uses: codespell-project/actions-codespell@2391250ab05295bddd51e36a8c6295edb6343b0e
       with:

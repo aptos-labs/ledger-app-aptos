@@ -11,6 +11,9 @@ on:
       - main
       - develop
 
+permissions:
+  contents: read
+
 jobs:
   nano_build:
     name: Build Aptos application for NanoS, X and S+
@@ -29,15 +32,19 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
 
       - name: Build
+        env:
+          BOLOS_SDK: ${{ matrix.SDK }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
-          make BOLOS_SDK=${{ matrix.SDK }}
+          make BOLOS_SDK="$BOLOS_SDK"
 
       - name: Upload app binary
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: ${{ matrix.artifact }}
           path: bin
@@ -50,7 +57,9 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
 
       - name: Build with Clang Static Analyzer
         run: |
@@ -58,7 +67,7 @@ jobs:
           scan-build --use-cc=clang -analyze-headers -enable-checker security -enable-checker unix -enable-checker valist -o scan-build --status-bugs make default
 
       - name: Upload scan result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         if: failure()
         with:
           name: scan-build
@@ -74,7 +83,9 @@ jobs:
       - name: Install curl
         run: apk add curl
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
       - name: Build unit tests
         run: |
           cd unit-tests/
@@ -88,13 +99,13 @@ jobs:
           lcov --directory . -b "$(realpath build/)" --remove coverage.info '*/unit-tests/*' -o coverage.info && \
           genhtml coverage.info -o coverage
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: code-coverage
           path: unit-tests/coverage
 
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@29386c70ef20e286228c72b668a06fd0e8399192 # v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./unit-tests/coverage.info
@@ -112,12 +123,14 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
 
       - name: HTML documentation
         run: doxygen .doxygen/Doxyfile
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: documentation
           path: doc/html
@@ -147,9 +160,11 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
       - name: Download app binary
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@cbed621e49e4c01b044d60f6c80ea4ed6328b281 # v2
         with:
           name: aptos-app-${{matrix.model}}
           path: bin
@@ -158,14 +173,17 @@ jobs:
           apt update && apt install -qy gcc netcat  # /!\ needed when installing pysha3
           pip install -r tests/ledgercomm/requirements.txt
       - name: Run test
+        env:
+          SPECULOS_MODEL: ${{ matrix.model }}
+          SPECULOS_SDK: ${{ matrix.SDK }}
         run: |
-          nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --button-port 42000 --automation-port 43000 --display headless --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}" > speculos.log 2<&1 &
+          nohup bash -c "python /speculos/speculos.py bin/app.elf --apdu-port 9999 --button-port 42000 --automation-port 43000 --display headless --model=$SPECULOS_MODEL --sdk=$SPECULOS_SDK" > speculos.log 2<&1 &
           until `nc -w5 -z -v 127.0.0.1 9999`; do sleep 1; done;
-          pytest --headless tests/ledgercomm/  --model=${{ matrix.model }}
+          pytest --headless tests/ledgercomm/  --model=$SPECULOS_MODEL
 
       - name: Upload Speculos log
         if: ${{ always() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@82c141cc518b40d92cc801eee768e7aafc9c2fa2 # v2
         with:
           name: speculos-log
           path: speculos.log
@@ -187,9 +205,11 @@ jobs:
 
     steps:
       - name: Clone
-        uses: actions/checkout@v2
+        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        with:
+          persist-credentials: false
       - name: Download app binary
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@cbed621e49e4c01b044d60f6c80ea4ed6328b281 # v2
         with:
           name: aptos-app-${{matrix.model}}
           path: bin
@@ -200,4 +220,6 @@ jobs:
       - name: Run test
         env:
           CTEST_OUTPUT_ON_FAILURE: 1
-        run: pytest tests/speculos/ --model=${{ matrix.model }} --sdk=${{ matrix.SDK }}
+          SPECULOS_MODEL: ${{ matrix.model }}
+          SPECULOS_SDK: ${{ matrix.SDK }}
+        run: pytest tests/speculos/ --model=$SPECULOS_MODEL --sdk=$SPECULOS_SDK
