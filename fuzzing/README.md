@@ -5,17 +5,19 @@
 In `fuzzing` folder
 
 ```
-cmake -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -Bbuild -H.
+./build.sh
 ```
 
-then
-
-```
-make -C build
-```
+Note: `-DSANITIZER=memory` can be changed to address to switch to address sanitizer.
 
 ## Run
 
 ```
-./build/fuzz_tx_parser
+./run.sh
+```
+
+## Generate coverage
+
+```
+./coverage.sh
 ```

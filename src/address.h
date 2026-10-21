@@ -21,3 +21,16 @@
  *
  */
 bool address_from_pubkey(const uint8_t public_key[static 32], uint8_t *out, size_t out_len);
+
+/**
+ * Validates BIP32 derivation path for Aptos.
+ *
+ * @param[in] path
+ *   Pointer to an array of uint32_t representing the BIP32 path.
+ * @param[in] path_len
+ *   The number of elements in the `path` array. Must be at least 3 for the function to succeed.
+ *
+ * @return true if success, false otherwise.
+ *
+ */
+bool validate_aptos_bip32_path(const uint32_t *path, size_t path_len);
