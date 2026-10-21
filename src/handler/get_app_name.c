@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate.
+ *   Ledger App Aptos.
  *   (c) 2020 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,20 +15,20 @@
  *  limitations under the License.
  *****************************************************************************/
 
+#include "get_app_name.h"
+
 #include <stdint.h>  // uint*_t
 
-#include "get_app_name.h"
 #include "../constants.h"
 #include "../globals.h"
-#include "../io.h"
 #include "../sw.h"
 #include "../types.h"
-#include "common/buffer.h"
+#include "buffer.h"
+#include "io.h"
 
 int handler_get_app_name() {
-    _Static_assert(APPNAME_LEN < MAX_APPNAME_LEN, "APPNAME must be at most 64 characters!");
+    _Static_assert(APPNAME_LEN < MAX_APPNAME_LEN,
+                   "APPNAME must be at most 64 characters!");
 
-    buffer_t rdata = {.ptr = (uint8_t *) PIC(APPNAME), .size = APPNAME_LEN, .offset = 0};
-
-    return io_send_response(&rdata, SW_OK);
+    return io_send_response_pointer(PIC(APPNAME), APPNAME_LEN, SW_OK);
 }

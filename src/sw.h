@@ -49,9 +49,9 @@
  */
 #define SW_TX_PARSING_FAIL 0xB005
 /**
- * Status word for fail of transaction hash.
+ * Status word for fail of getting public key.
  */
-#define SW_TX_HASH_FAIL 0xB006
+#define SW_GET_PUB_KEY_FAIL 0xB006
 /**
  * Status word for bad state.
  */
@@ -60,3 +60,11 @@
  * Status word for signature fail.
  */
 #define SW_SIGNATURE_FAIL 0xB008
+/**
+ * Status word for fail to display gas fee.
+ */
+#define SW_DISPLAY_GAS_FEE_FAIL 0xB009
+/**
+ * Status word for fail on swap validity check.
+ */
+#define SW_SWAP_CHECKING_FAIL 0xB00A

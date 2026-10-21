@@ -9,7 +9,7 @@
  *   User choice (either approved or rejectd).
  *
  */
-void ui_action_validate_pubkey(bool choice);
+void validate_pubkey(bool choice);
 
 /**
  * Action for transaction information validation.
@@ -18,4 +18,4 @@ void ui_action_validate_pubkey(bool choice);
  *   User choice (either approved or rejectd).
  *
  */
-void ui_action_validate_transaction(bool choice);
+void validate_transaction(bool choice);

@@ -1,7 +1,8 @@
 #pragma once
 
+#include "buffer.h"
+
 #include "types.h"
-#include "../common/buffer.h"
 
 bool bcs_read_bool(buffer_t *buffer, bool *value);
 bool bcs_read_option_tag(buffer_t *buffer, bool *value);

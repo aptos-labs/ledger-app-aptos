@@ -5,8 +5,6 @@
 
 #include "../bcs/types.h"
 
-#define MAX_TX_LEN 510
-
 typedef enum {
     PARSING_OK = 1,
     HASHED_PREFIX_READ_ERROR = -1,
