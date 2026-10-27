@@ -15,6 +15,7 @@ on:
       - master
       - main
       - develop
+      - next
   pull_request:
 
 jobs:
