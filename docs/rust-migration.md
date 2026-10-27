@@ -41,7 +41,7 @@ Then configure GitHub:
 ## Cutover checklist
 
 - [ ] Every issue in the "v2 parity" milestone is closed.
-- [ ] Every v1 functional test file and the swap tests are ported to `next` and pass on nanox, nanos+, stax, flex, and apex_p. Every snapshot difference from v1 is intentional and was reviewed.
+- [ ] **Parity:** every v1 functional test file and the swap tests are ported to `next` and pass on nanox, nanos+, stax, flex, and apex_p. Every snapshot difference from v1 is intentional and was reviewed.
 - [ ] **v1 fix audit:** every commit on `main` since `next` was created has been reviewed and is either ported to `next` or recorded as not relevant. List them with:
       `git log --oneline --no-merges --since=<date next was created> origin/main`
       (the two histories share no merge base, so filter by date instead of using a range).
@@ -68,6 +68,7 @@ git push -u origin cutover
 3. Tag `2.0.0` on the merge commit. `release.yml` publishes the release.
 4. Delete `next`.
 5. Remove `next` from the workflows' `push.branches` filters.
+6. Update the `### Rust migration` section of CLAUDE.md and the **Next** entry in GLOSSARY.md (past tense, or remove).
 
 ## After cutover (v2.1+)
 

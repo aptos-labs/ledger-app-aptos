@@ -19,15 +19,15 @@ LedgerHQ/app-boilerplate-rust, the upstream template that **v2** descends from.
 _Avoid_: template, starter
 
 **Boilerplate sync**:
-Bringing upstream **Boilerplate** changes into **v2** with a merge.
+Bringing upstream **Boilerplate** changes into **v2**.
 _Avoid_: upstream update, rebase on boilerplate
 
 **Next**:
-The long-lived branch where **v2** is built until **Cutover**.
+Where **v2** is built until **Cutover**.
 _Avoid_: rust branch, v2 branch
 
 **Parity**:
-The state where **v2** does everything **v1** does: every item on the parity checklist is closed, and every v1 functional test and swap test passes on all supported devices.
+The state where **v2** does everything **v1** does.
 _Avoid_: feature complete, done
 
 **Cutover**:
