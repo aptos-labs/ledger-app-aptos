@@ -63,7 +63,7 @@ git commit -m "Cutover: replace C v1 with Rust v2 (join next into main)"
 git push -u origin cutover
 ```
 
-1. Update `main` branch protection: change the required checks from the C job names to the Rust job names, and require **at least 1 approval**.
+1. Update `main` branch protection: change the required checks from the C job names to the Rust job names, require **at least 1 approval**, and turn **off** "Require linear history". That setting rejects merge commits, so it would block both the cutover PR and later boilerplate syncs.
 2. Open a PR from `cutover` into `main` and merge it with a **merge commit**.
 3. Tag `2.0.0` on the merge commit. `release.yml` publishes the release.
 4. Delete `next`.
@@ -72,7 +72,7 @@ git push -u origin cutover
 
 ## After cutover (v2.1+)
 
-- Normal development on `main`: PR required, **at least 1 approval**, Rust CI checks required, no force-push, no deletion.
+- Normal development on `main`: PR required, **at least 1 approval**, Rust CI checks required, no force-push, no deletion, no linear-history requirement (boilerplate syncs are merge commits).
 - Feature PRs are squash-merged.
 - Boilerplate syncs target `main` the same way as before: a `sync/boilerplate-<short-sha>` branch, merged with a merge commit.
 - The C code stays reachable through history and the `v1-final` tag. Cut a `v1` branch from that tag only for an emergency.
