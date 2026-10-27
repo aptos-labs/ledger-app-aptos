@@ -37,6 +37,7 @@ Then configure GitHub:
 - **v1 fixes on `main`** are ported to `next` by the author or the team, informally. The cutover checklist has a backstop.
 - **Tags:** no `X.Y.Z` tags on `next`, because `release.yml` publishes a GitHub release on any of them. Pre-releases, if needed, use `2.0.0-alpha.N`.
 - Meta files (agent docs, glossary, ADRs) are maintained on `next` only.
+- **Temporary SDK patches:** while an upstream Ledger SDK fix is unreleased, `next` may pin it with a `[patch.crates-io]` git `rev` in `Cargo.toml`, with a comment linking the upstream PR. Drop the patch and bump the crate as soon as a release includes the fix.
 
 ## Cutover checklist
 
@@ -47,6 +48,7 @@ Then configure GitHub:
       (the two histories share no merge base, so filter by date instead of using a range).
 - [ ] Ledger has agreed that v2 releases come from aptos-labs tags.
 - [ ] `Makefile`/`Cargo.toml` version is `2.0.0`.
+- [ ] `Cargo.toml` has no `[patch.crates-io]` section: every Ledger crate comes from a crates.io release.
 
 ## Cutover runbook
 
