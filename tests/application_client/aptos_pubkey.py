@@ -10,15 +10,11 @@ class AptosPubkeyClient:
         self.backend = backend
 
     def get_public_key(self, path: str) -> RAPDU:
-        return self.backend.exchange(
-            cla=0x5B, ins=0x05, p1=0, p2=0, data=pack_derivation_path(path)
-        )
+        return self.backend.exchange(cla=0x5B, ins=0x05, p1=0, p2=0, data=pack_derivation_path(path))
 
     @contextmanager
     def get_public_key_with_confirmation(self, path: str) -> Generator[None, None, None]:
-        with self.backend.exchange_async(
-            cla=0x5B, ins=0x05, p1=1, p2=0, data=pack_derivation_path(path)
-        ):
+        with self.backend.exchange_async(cla=0x5B, ins=0x05, p1=1, p2=0, data=pack_derivation_path(path)):
             yield
 
     def get_async_response(self) -> RAPDU | None:

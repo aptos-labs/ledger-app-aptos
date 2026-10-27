@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::AppSW;
-use ledger_device_sdk::ecc::{Ed25519, Secp256k1, SeedDerive};
+use ledger_device_sdk::ecc::{Ed25519, SeedDerive};
 use ledger_device_sdk::hash::{
     sha3::{Keccak256, Sha3_256},
     HashInit,
@@ -31,6 +31,7 @@ impl TryFrom<&[u8]> for Bip32Path {
     /// - Remaining bytes: Big-endian u32 components (4 bytes each)
     /// - First two components: m/44'/637'
     /// - All components hardened (Ed25519 SLIP-10)
+    ///
     /// A mismatch in encoded length is 0x6A87; unsupported paths are 0xB006.
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
         if data.is_empty() || data[0] as usize * 4 != data.len() - 1 {
@@ -84,20 +85,6 @@ pub fn aptos_address_from_pubkey(pubkey: &[u8; 32]) -> Result<[u8; 32], AppSW> {
     sha3.finalize(&mut address)
         .map_err(|_| AppSW::GetPubKeyFail)?;
     Ok(address)
-}
-
-/// Derive the raw public key from a BIP32 path.
-///
-/// Returns the uncompressed secp256k1 public key (65 bytes):
-/// - First byte: 0x04 (uncompressed marker)
-/// - Next 32 bytes: X coordinate
-/// - Last 32 bytes: Y coordinate
-///
-/// Retained for the existing secp256k1 swap path until swap adopts Aptos keys.
-pub fn get_pubkey_from_path(path: &Bip32Path) -> Result<[u8; 65], AppSW> {
-    let (k, _) = Secp256k1::derive_from(path.as_ref());
-    let pk = k.public_key().map_err(|_| AppSW::GetPubKeyFail)?;
-    Ok(pk.pubkey)
 }
 
 /// Compute Keccak256 hash of a public key for address derivation.
