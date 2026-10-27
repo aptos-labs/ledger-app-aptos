@@ -1,12 +1,10 @@
-# Ledger Rust Boilerplate Application
+# Ledger Aptos Application (Rust)
 
-![Rule enforcer](https://github.com/LedgerHQ/app-boilerplate-rust/actions/workflows/guidelines_enforcer.yml/badge.svg) ![Build and tests](https://github.com/LedgerHQ/app-boilerplate-rust/actions/workflows/build_and_functional_tests.yml/badge.svg)
+![Rule enforcer](https://github.com/aptos-labs/ledger-app-aptos/actions/workflows/guidelines_enforcer.yml/badge.svg) ![Build and tests](https://github.com/aptos-labs/ledger-app-aptos/actions/workflows/build_and_functional_tests.yml/badge.svg)
 
-This is a boilerplate application written in Rust which can be forked to start a new project for the Ledger devices.
+This repository builds the Aptos Ledger application for Nano X, Nano S+, Stax, Flex, and Apex P. The Rust app is developed on `next` until it reaches v1 parity; see [the migration runbook](docs/rust-migration.md) for the cutover requirements.
 
-* Implements standard features (display address, transaction signature...),
-* Has functional tests using [Ragger](https://github.com/LedgerHQ/ragger),
-* Has CI workflows mandatory for app deployment in the Ledger store.
+The app uses Ed25519 and the `44'/637'` derivation path, has Ragger/Speculos functional tests, and ships through Ledger's build workflows.
 
 ### Links
 
@@ -85,7 +83,7 @@ Any of the commands from [Building](#building) and [Testing](#testing) can be ru
 
 ### Building
 
-You can build the boilerplate with the following command executed in the root directory of the app.
+Build the Aptos app from the repository root:
 ```bash
 cargo ledger build nanox
 ```
@@ -95,7 +93,7 @@ This command will build the app for the Nano X, but you can use any supported de
 
 ### Testing
 #### Ragger functional tests
-This boilerplate app comes with functional tests implemented with Ledger's [Ragger](https://github.com/LedgerHQ/ragger) test framework. There are two suites:
+The Aptos app has Ragger functional suites:
 * `tests/standalone/` — normal app launch (dashboard → app).
 * `tests/swap/` — the Exchange-driven swap flow (requires Exchange + Ethereum app binaries, see [tests/swap/README.md](tests/swap/README.md)).
 
