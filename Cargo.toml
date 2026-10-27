@@ -44,3 +44,9 @@ name = "Rust Betanet BP"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("apex_p", "stax", "flex", "nanos", "nanox", "nanosplus"))'] }
+
+# TEMPORARY: NbglAddressReview without tag/value pairs is rejected by C SDK >= v27.1.3
+# (0x6985). Pinned to the upstream fix on our fork until ledger_device_sdk ships it;
+# then drop this section and bump ledger_device_sdk. See docs/rust-migration.md.
+[patch.crates-io]
+ledger_device_sdk = { git = "https://github.com/maykonmichel/ledger-device-rust-sdk.git", rev = "698c9352b7885e1433156f6067b4748466eeb694" }
