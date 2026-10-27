@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 
 use crate::AppSW;
-use ledger_device_sdk::ecc::{Ed25519, SeedDerive};
+use ledger_device_sdk::ecc::Ed25519;
 use ledger_device_sdk::hash::{
     sha3::{Keccak256, Sha3_256},
     HashInit,
