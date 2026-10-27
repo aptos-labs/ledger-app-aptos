@@ -32,6 +32,7 @@ Then configure GitHub:
 
 ## Rules during the migration
 
+- **Dependabot** targets `next` (`target-branch` in `.github/dependabot.yml`), so `ledger_device_sdk` bumps land where the Rust code lives. The Ledger guidelines enforcer fails when the SDK isn't the latest version.
 - **Feature PRs into `next`** are **squash-merged**. Each one ports the v1 functional tests for that feature into `tests/standalone/`, and they become required checks right away.
 - **Boilerplate syncs** happen on demand, only when an upstream change is needed: an SDK bump, a CI or guideline change, or a Ledger requirement. Branch `sync/boilerplate-<short-sha>` from `next`, run `git merge boilerplate/main`, and open a PR. Always use a **merge commit**, never squash.
 - **v1 fixes on `main`** are ported to `next` by the author or the team, informally. The cutover checklist has a backstop.
@@ -67,7 +68,7 @@ git push -u origin cutover
 2. Open a PR from `cutover` into `main` and merge it with a **merge commit**.
 3. Tag `2.0.0` on the merge commit. `release.yml` publishes the release.
 4. Delete `next`.
-5. Remove `next` from the workflows' `push.branches` filters.
+5. Remove `next` from the workflows' `push.branches` filters, and remove `target-branch: "next"` from `.github/dependabot.yml`.
 6. Update the `### Rust migration` section of CLAUDE.md and the **Next** entry in GLOSSARY.md (past tense, or remove).
 
 ## After cutover (v2.1+)
