@@ -220,7 +220,7 @@ dependencies = [
 [[package]]
 name = "include_gif"
 version = "1.3.2"
-source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=698c9352b7885e1433156f6067b4748466eeb694#698c9352b7885e1433156f6067b4748466eeb694"
+source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=416831ff57a1991ec889f8f07a969ef91e469f3a#416831ff57a1991ec889f8f07a969ef91e469f3a"
 dependencies = [
  "flate2",
  "gif",
@@ -245,8 +245,8 @@ checksum = "92ecc6618181def0457392ccd0ee51198e065e016d1d527a7ac1b6dc7c1f09d2"
 
 [[package]]
 name = "ledger_device_sdk"
-version = "1.42.3"
-source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=698c9352b7885e1433156f6067b4748466eeb694#698c9352b7885e1433156f6067b4748466eeb694"
+version = "1.42.2"
+source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=416831ff57a1991ec889f8f07a969ef91e469f3a#416831ff57a1991ec889f8f07a969ef91e469f3a"
 dependencies = [
  "const-zero",
  "include_gif",
@@ -261,7 +261,7 @@ dependencies = [
 [[package]]
 name = "ledger_secure_sdk_sys"
 version = "1.18.0"
-source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=698c9352b7885e1433156f6067b4748466eeb694#698c9352b7885e1433156f6067b4748466eeb694"
+source = "git+https://github.com/maykonmichel/ledger-device-rust-sdk.git?rev=416831ff57a1991ec889f8f07a969ef91e469f3a#416831ff57a1991ec889f8f07a969ef91e469f3a"
 dependencies = [
  "bindgen",
  "cc",
