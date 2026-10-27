@@ -32,7 +32,7 @@ variant_betanet = ["ledger_device_sdk/variant_1"]
 
 [package.metadata.ledger]
 curve = ["ed25519"]
-flags = "0"
+flags = "0x800"
 path = ["44'/637'"]
 name = "Aptos"
 nanosplus = { icon = "icons/app_aptos_14px.gif" }
