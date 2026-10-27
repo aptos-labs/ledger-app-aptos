@@ -1,5 +1,5 @@
 [package]
-name = "ledger-app-aptos"
+name = "APTOS"
 version = "1.9.1"
 authors = ["Ledger"]
 edition = "2021"

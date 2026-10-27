@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust.
+ *   Ledger App Aptos.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -50,6 +50,9 @@ extern crate alloc;
 use ledger_device_sdk::nbgl::{NbglReviewStatus, StatusType};
 
 ledger_device_sdk::define_comm!(COMM);
+
+// v1 Aptos APDU class byte.
+const APTOS_CLA: u8 = 0x5B;
 
 // P2 for last APDU to receive.
 const P2_SIGN_TX_LAST: u8 = 0x00;
@@ -196,7 +199,7 @@ extern "C" fn sample_main(arg0: u32) {
 pub fn normal_main(swap_params: Option<&CreateTxParams>) -> bool {
     // The SDK rejects unexpected classes before handing commands to the app.
     let comm = init_comm(&COMM);
-    comm.set_expected_cla(0x5B);
+    comm.set_expected_cla(APTOS_CLA);
 
     let mut tx_ctx = if let Some(params) = swap_params {
         TxContext::new_with_swap(params)

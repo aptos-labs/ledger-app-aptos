@@ -3,6 +3,20 @@
 version = 4
 
 [[package]]
+name = "APTOS"
+version = "1.9.1"
+dependencies = [
+ "arrayvec",
+ "gif",
+ "hex",
+ "ledger_device_sdk",
+ "numtoa",
+ "png",
+ "serde",
+ "serde-json-core",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -237,20 +251,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "ledger-app-aptos"
-version = "1.9.1"
-dependencies = [
- "arrayvec",
- "gif",
- "hex",
- "ledger_device_sdk",
- "numtoa",
- "png",
- "serde",
- "serde-json-core",
-]
 
 [[package]]
 name = "ledger_device_sdk"
