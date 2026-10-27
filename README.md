@@ -25,8 +25,8 @@ By using Ledger's own developer tools [Docker image](https://github.com/LedgerHQ
   * On macOS, install and launch [XQuartz](https://www.xquartz.org/) (make sure to go to XQuartz > Preferences > Security and check "Allow client connections").
   * On Windows, install and launch [VcXsrv](https://sourceforge.net/projects/vcxsrv/) (make sure to configure it to disable access control).
 * Install [VScode](https://code.visualstudio.com/download) and add [Ledger's extension](https://marketplace.visualstudio.com/items?itemName=LedgerHQ.ledger-dev-tools).
-* Open a terminal and clone `app-boilerplate-rust` with `git clone git@github.com:LedgerHQ/app-boilerplate-rust.git`.
-* Open the `app-boilerplate-rust` folder with VSCode.
+* Clone this repository with `git clone git@github.com:aptos-labs/ledger-app-aptos.git`.
+* Open the `ledger-app-aptos` folder with VS Code.
 * Use Ledger extension's sidebar menu or open the tasks menu with `ctrl + shift + b` (`command + shift + b` on a Mac) to conveniently execute actions :
   * **Build** the app for the device model of your choice with `Build`.
   * **Test** your binary on the [Speculos emulator](https://github.com/LedgerHQ/speculos) with `Run with emulator`.
@@ -112,12 +112,12 @@ pytest tests/standalone/ --tb=short -v --device {nanosp | nanox | stax | flex | 
 You can also run the app directly on the [Speculos emulator](https://github.com/LedgerHQ/speculos) from the Docker container
 #### Nano S+ or X
 ```bash
-speculos --apdu-port 9999 --api-port 5001 --display headless target/nanosplus/release/app-boilerplate-rust
+speculos --apdu-port 9999 --api-port 5001 --display headless target/nanosplus/release/APTOS
 ```
 :warning: UI is displayed on `localhost:5001`
 #### Stax, Flex or Apex P
 ```bash
-speculos --apdu-port 9999 --api-port 5001 target/stax/release/app-boilerplate-rust
+speculos --apdu-port 9999 --api-port 5001 target/stax/release/APTOS
 ```
 
 :warning: UI is displayed by your X server
@@ -137,7 +137,7 @@ pip3 install ledgerblue
 ```
 * Load on device, e.g. for Flex:
 ```bash
-python3 -m ledgerblue.runScript --targetId <id> --fileName target/flex/release/app-boilerplate-rust.apdu --apdu --scp
+python3 -m ledgerblue.runScript --targetId <id> --fileName target/flex/release/APTOS.apdu --apdu --scp
 ```
 
 ℹ️ Your device must be connected, unlocked and the screen showing the dashboard (not inside an application).
@@ -148,12 +148,12 @@ ledgerblue needs the device's `targetId`.
 
 If you call ledgerblue manually, note that its `--targetId` defaults to `0x31100002` (Nano S) — wrong for every other device, and it is **not** auto-detected from the connected device. The cleanest option is to let ledgerblue read the id straight from the ELF with `--elfFile`, which overrides `--targetId`:
 ```bash
-python3 -m ledgerblue.runScript --elfFile target/flex/release/app-boilerplate-rust --fileName <install_script> --apdu --scp
+python3 -m ledgerblue.runScript --elfFile target/flex/release/APTOS --fileName <install_script> --apdu --scp
 ```
 
 If you instead need the raw target ID value (e.g. for a CI script), the [`tools/get_target_id.py`](tools/get_target_id.py) helper extracts it from the `ledger.target_id` ELF section:
 ```bash
-python3 tools/get_target_id.py target/flex/release/app-boilerplate-rust   # -> 0x33300004
+python3 tools/get_target_id.py target/flex/release/APTOS   # -> 0x33300004
 ```
 
 #### For end users: standalone installer
