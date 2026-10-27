@@ -83,3 +83,23 @@ The generic embedded/Rust rules are imported above; the points below are this ap
 - `tests/swap/` — pytest suite for the Exchange-driven swap flow; requires Exchange + Ethereum app binaries built into `tests/swap/.test_dependencies/` via `helper_tool_clone_dependencies.py` (host) then `helper_tool_build_dependencies.py` (Docker).
 - Tests must construct APDU payloads with named variables and `struct.pack` — no raw hex literals.
 
+
+<!-- Everything above this line is upstream boilerplate content; keep it untouched to minimise boilerplate-sync conflicts. -->
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked in GitHub Issues on aptos-labs/ledger-app-aptos (via `gh`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Uses the five default triage labels (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Rust migration
+
+This branch (`next`) is the v2 Rust rewrite, descended from LedgerHQ/app-boilerplate-rust. Branching rules, boilerplate-sync procedure, and the cutover runbook: `docs/rust-migration.md` (rationale in `docs/adr/0001-rust-rewrite-on-unrelated-history-branch.md`).
