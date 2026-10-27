@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 
-from ragger.backend.interface import BackendInterface, RAPDU
+from ragger.backend.interface import RAPDU, BackendInterface
 from ragger.bip import pack_derivation_path
 
 
