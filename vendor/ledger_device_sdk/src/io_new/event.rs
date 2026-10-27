@@ -1,0 +1,275 @@
+use super::{ApduError, ApduHeader, Comm};
+use crate::seph;
+
+#[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
+use ledger_secure_sdk_sys::buttons::{ButtonEvent, get_button_event};
+
+#[cfg(any(
+    target_os = "nanox",
+    target_os = "stax",
+    target_os = "flex",
+    target_os = "apex_p"
+))]
+use crate::seph::ItcUxEvent;
+
+use ledger_secure_sdk_sys::*;
+
+/// An event as decoded from the `Comm` buffer, before the APDU policies of
+/// [`Comm::next_event`] and [`Comm::next_command`] are applied.
+///
+/// It holds no borrow of the `Comm`, so that the receive loops can keep
+/// calling into the `Comm` until they find an event worth returning.
+pub(crate) enum RawEvent {
+    Apdu {
+        header: ApduHeader,
+        offset: usize,
+        length: usize,
+    },
+    ApduError {
+        /// `None` if the APDU is too short to hold a header.
+        header: Option<ApduHeader>,
+        error: ApduError,
+    },
+    #[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
+    Button(ButtonEvent),
+    #[cfg(any(target_os = "stax", target_os = "flex", target_os = "apex_p"))]
+    Touch,
+    Ticker,
+    // Events for which no additional handling is required after decoding it
+    Ignored,
+}
+
+impl RawEvent {
+    /// Decode the `len` bytes received into the `Comm` buffer. No replies are
+    /// sent, but UX-related and other OS interactions are dealt with.
+    pub(crate) fn decode<const N: usize>(comm: &mut Comm<N>, len: usize) -> Self {
+        // If no data was received, return Ignored to avoid reading stale buffer data
+        if len == 0 {
+            return RawEvent::Ignored;
+        }
+
+        let pt = comm.buf[0];
+        use crate::seph::PacketTypes;
+
+        match PacketTypes::from(pt) {
+            PacketTypes::PacketTypeSeph | PacketTypes::PacketTypeSeEvent => {
+                // Copy out SEPH payload (like original) or reinterpret in place.
+                // Optimization: we can borrow slice without copying because io_buffer stores
+                // [packet_type][payload...].
+                Self::decode_seph_event(comm, 1)
+            }
+            PacketTypes::PacketTypeRawApdu
+            | PacketTypes::PacketTypeUsbHidApdu
+            | PacketTypes::PacketTypeUsbWebusbApdu
+            | PacketTypes::PacketTypeBleApdu => {
+                // Reject every APDU, BOLOS ones included, while the device is
+                // locked, as `io_legacy` does. The reply goes out on the
+                // APDU's own transport and no `Comm` state is touched, so a
+                // command in flight is left undisturbed.
+                if Self::is_device_locked() {
+                    comm.reject_apdu(pt, super::StatusWords::DeviceLocked);
+                    RawEvent::Ignored
+                } else {
+                    Self::decode_apdu(comm, pt, 1, len)
+                }
+            }
+
+            _ => RawEvent::Ignored,
+        }
+    }
+
+    /// True if a PIN is set and has not been validated yet.
+    fn is_device_locked() -> bool {
+        unsafe {
+            os_perso_is_pin_set() == BOLOS_TRUE as u8
+                && os_global_pin_is_validated() != BOLOS_TRUE as u8
+        }
+    }
+
+    fn decode_seph_event<const N: usize>(comm: &mut Comm<N>, offset: usize) -> Self {
+        use crate::seph::Events;
+        let seph_buffer = &comm.buf[offset..];
+        let tag = seph_buffer[0];
+        match Events::from(tag) {
+            // BUTTON PUSH EVENT
+            #[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
+            Events::ButtonPushEvent => {
+                #[cfg(feature = "nano_nbgl")]
+                unsafe {
+                    ux_process_button_event(seph_buffer.as_ptr() as *mut u8); // the cast to mutable can be removed on more recent SDKs
+                }
+                let button_info = seph_buffer[3] >> 1;
+                if let Some(btn_evt) = get_button_event(&mut comm.buttons, button_info) {
+                    return RawEvent::Button(btn_evt);
+                }
+                RawEvent::Ignored
+            }
+
+            // SCREEN TOUCH EVENT
+            #[cfg(any(target_os = "stax", target_os = "flex", target_os = "apex_p"))]
+            Events::ScreenTouchEvent => unsafe {
+                ux_process_finger_event(seph_buffer.as_ptr() as *mut u8); // the cast to mutable can be removed on more recent SDKs
+                return RawEvent::Touch;
+            },
+
+            // TICKER EVENT
+            Events::TickerEvent => {
+                #[cfg(any(
+                    target_os = "stax",
+                    target_os = "flex",
+                    target_os = "apex_p",
+                    feature = "nano_nbgl"
+                ))]
+                unsafe {
+                    ux_process_ticker_event();
+                }
+                RawEvent::Ticker
+            }
+
+            // ITC EVENT
+            seph::Events::ItcEvent => {
+                let _len = u16::from_be_bytes([seph_buffer[1], seph_buffer[2]]) as usize;
+                #[cfg(any(
+                    target_os = "nanox",
+                    target_os = "stax",
+                    target_os = "flex",
+                    target_os = "apex_p"
+                ))]
+                match ItcUxEvent::from(seph_buffer[3]) {
+                    seph::ItcUxEvent::AskBlePairing => unsafe {
+                        G_ux_params.ux_id = BOLOS_UX_ASYNCHMODAL_PAIRING_REQUEST;
+                        G_ux_params.len = 20;
+                        G_ux_params.u.pairing_request.type_ = seph_buffer[4];
+                        G_ux_params.u.pairing_request.pairing_info_len = (_len - 2) as u32;
+                        for i in 0..G_ux_params.u.pairing_request.pairing_info_len as usize {
+                            G_ux_params.u.pairing_request.pairing_info[i as usize] =
+                                seph_buffer[5 + i] as core::ffi::c_char;
+                        }
+                        G_ux_params.u.pairing_request.pairing_info
+                            [G_ux_params.u.pairing_request.pairing_info_len as usize] = 0;
+                        os_ux(&raw mut G_ux_params as *mut bolos_ux_params_t);
+                    },
+
+                    seph::ItcUxEvent::BlePairingStatus => unsafe {
+                        G_ux_params.ux_id = BOLOS_UX_ASYNCHMODAL_PAIRING_STATUS;
+                        G_ux_params.len = 0;
+                        G_ux_params.u.pairing_status.pairing_ok = seph_buffer[4];
+                        os_ux(&raw mut G_ux_params as *mut bolos_ux_params_t);
+                    },
+
+                    seph::ItcUxEvent::Redisplay => {
+                        #[cfg(any(
+                            target_os = "stax",
+                            target_os = "flex",
+                            target_os = "apex_p",
+                            feature = "nano_nbgl"
+                        ))]
+                        unsafe {
+                            nbgl_objAllowDrawing(true);
+                            nbgl_screenRedraw();
+                            nbgl_refresh();
+                        }
+                    }
+                    _ => {}
+                }
+                RawEvent::Ignored
+            }
+            // DEFAULT EVENT
+            _ => {
+                #[cfg(any(
+                    target_os = "stax",
+                    target_os = "flex",
+                    target_os = "apex_p",
+                    feature = "nano_nbgl"
+                ))]
+                unsafe {
+                    ux_process_default_event();
+                }
+                #[cfg(any(target_os = "nanox", target_os = "nanosplus"))]
+                if !cfg!(feature = "nano_nbgl") {
+                    crate::uxapp::UxEvent::Event.request();
+                }
+                RawEvent::Ignored
+            }
+        }
+    }
+
+    fn decode_apdu<const N: usize>(
+        comm: &mut Comm<N>,
+        packet_type: u8,
+        offset: usize,
+        io_len: usize,
+    ) -> Self {
+        use ApduError::*;
+
+        comm.apdu_type = packet_type;
+
+        let apdu_buffer = &comm.buf[offset..];
+
+        if io_len < 5 {
+            return RawEvent::ApduError {
+                header: None,
+                error: BadLen,
+            };
+        }
+
+        let rx_len = io_len - 1;
+
+        let header = ApduHeader {
+            cla: apdu_buffer[0],
+            ins: apdu_buffer[1],
+            p1: apdu_buffer[2],
+            p2: apdu_buffer[3],
+        };
+        if rx_len == 4 {
+            #[cfg(feature = "aptos_apdu")]
+            return Self::bad_len(header);
+            #[cfg(not(feature = "aptos_apdu"))]
+            return Self::new_apdu(header, 4, 0);
+        }
+        let first_len_byte = apdu_buffer[4];
+
+        match (first_len_byte, rx_len) {
+            (0, 5) => {
+                // Empty APDUs include an explicit zero Lc in the Aptos protocol.
+                #[cfg(feature = "aptos_apdu")]
+                { Self::new_apdu(header, 1 + 5, 0) }
+                #[cfg(not(feature = "aptos_apdu"))]
+                { Self::new_apdu(header, 4, 0) }
+            }
+            #[cfg(feature = "aptos_apdu")]
+            (0, _) => Self::bad_len(header),
+            #[cfg(not(feature = "aptos_apdu"))]
+            (0, 6) => Self::bad_len(header),
+            #[cfg(not(feature = "aptos_apdu"))]
+            (0, _) => {
+                let len = u16::from_be_bytes([apdu_buffer[5], apdu_buffer[6]]) as usize;
+                if rx_len != len + 7 {
+                    return Self::bad_len(header);
+                }
+                Self::new_apdu(header, 1 + 7, len)
+            }
+            (len, _) => {
+                if rx_len != len as usize + 5 {
+                    return Self::bad_len(header);
+                }
+                Self::new_apdu(header, 1 + 5, len as usize)
+            }
+        }
+    }
+
+    fn bad_len(header: ApduHeader) -> Self {
+        Self::ApduError {
+            header: Some(header),
+            error: ApduError::BadLen,
+        }
+    }
+
+    fn new_apdu(header: ApduHeader, offset: usize, length: usize) -> Self {
+        Self::Apdu {
+            header,
+            offset,
+            length,
+        }
+    }
+}

@@ -44,7 +44,7 @@ impl TryFrom<&[u8]> for Bip32Path {
         if data.is_empty() // At least the length byte is required
             || (data[0] as usize * 4 != data.len() - 1)
         {
-            return Err(AppSW::WrongApduLength);
+            return Err(AppSW::WrongDataLength);
         }
 
         Ok(Bip32Path(
@@ -77,7 +77,7 @@ impl TryFrom<&[u8]> for Bip32Path {
 /// 65-byte uncompressed public key or error
 pub fn get_pubkey_from_path(path: &Bip32Path) -> Result<[u8; 65], AppSW> {
     let (k, _) = Secp256k1::derive_from(path.as_ref());
-    let pk = k.public_key().map_err(|_| AppSW::KeyDeriveFail)?;
+    let pk = k.public_key().map_err(|_| AppSW::GetPubKeyFail)?;
     Ok(pk.pubkey)
 }
 

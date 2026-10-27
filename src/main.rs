@@ -39,7 +39,7 @@ use handlers::{
     get_version::handler_get_version,
     sign_tx::{handler_sign_tx, TxContext},
 };
-use ledger_device_sdk::io::{self, init_comm, ApduHeader, Comm, Command, Reply, StatusWords};
+use ledger_device_sdk::io::{self, init_comm, ApduHeader, Comm, Command, Reply};
 use ledger_device_sdk::libcall::swap::CreateTxParams;
 
 ledger_device_sdk::set_panic!(ledger_device_sdk::exiting_panic);
@@ -60,26 +60,27 @@ const P1_SIGN_TX_START: u8 = 0x00;
 // P1 for maximum APDU number.
 const P1_SIGN_TX_MAX: u8 = 0x03;
 
-// Application status words.
+// Status words shared with the v1 APDU protocol.
 #[repr(u16)]
 #[derive(Clone, Copy, PartialEq)]
 pub enum AppSW {
+    Ok = 0x9000,
     Deny = 0x6985,
     WrongP1P2 = 0x6A86,
+    WrongDataLength = 0x6A87,
     InsNotSupported = 0x6D00,
     ClaNotSupported = 0x6E00,
-    CommError = 0x6F00,
-    TxDisplayFail = 0xB001,
-    AddrDisplayFail = 0xB002,
+    WrongResponseLength = 0xB000,
+    DisplayBip32PathFail = 0xB001,
+    DisplayAddressFail = 0xB002,
+    DisplayAmountFail = 0xB003,
     TxWrongLength = 0xB004,
     TxParsingFail = 0xB005,
-    TxHashFail = 0xB006,
-    TxSignFail = 0xB008,
-    KeyDeriveFail = 0xB009,
-    VersionParsingFail = 0xB00A,
-    WrongApduLength = StatusWords::BadLen as u16,
-    SwapFail = 0xC000,
-    Ok = 0x9000,
+    GetPubKeyFail = 0xB006,
+    BadState = 0xB007,
+    SignatureFail = 0xB008,
+    DisplayGasFeeFail = 0xB009,
+    SwapCheckingFail = 0xB00A,
 }
 
 impl From<AppSW> for Reply {
@@ -90,7 +91,7 @@ impl From<AppSW> for Reply {
 
 impl From<io::CommError> for AppSW {
     fn from(_e: io::CommError) -> Self {
-        AppSW::CommError
+        AppSW::WrongResponseLength
     }
 }
 
@@ -193,11 +194,9 @@ extern "C" fn sample_main(arg0: u32) {
 ///   - Transaction is validated against swap params
 ///   - Returns `true` if signed successfully, `false` otherwise
 pub fn normal_main(swap_params: Option<&CreateTxParams>) -> bool {
-    // Create the communication manager, and configure it to accept only APDU from the 0xe0 class.
-    // If any APDU with a wrong class value is received, comm will respond automatically with
-    // BadCla status word.
+    // The SDK rejects unexpected classes before handing commands to the app.
     let comm = init_comm(&COMM);
-    comm.set_expected_cla(0xe0);
+    comm.set_expected_cla(0x5B);
 
     let mut tx_ctx = if let Some(params) = swap_params {
         TxContext::new_with_swap(params)
@@ -245,7 +244,7 @@ fn handle_apdu<'a>(
     match ins {
         Instruction::GetAppName => {
             let mut response = command.into_response();
-            response.append(env!("CARGO_PKG_NAME").as_bytes())?;
+            response.append(b"Aptos")?;
             Ok(response)
         }
         Instruction::GetVersion => handler_get_version(command),

@@ -147,7 +147,7 @@ pub fn handler_sign_tx<'a>(
                     // Use SDK method to append error code and message in standard format
                     let mut response = command.into_response();
                     error.append_to_response(&mut response)?;
-                    Err(AppSW::SwapFail)
+                    Err(AppSW::SwapCheckingFail)
                 } else {
                     log::debug!("Swap validation success, bypassing UI");
                     compute_signature_and_append(command.into_response(), ctx)
@@ -186,7 +186,7 @@ fn compute_signature_and_append<'a>(
 
     let (sig, siglen, parity) = Secp256k1::derive_from_path(ctx.path.as_ref())
         .deterministic_sign(&message_hash)
-        .map_err(|_| AppSW::TxSignFail)?;
+        .map_err(|_| AppSW::SignatureFail)?;
 
     response
         .append(&[siglen as u8])?

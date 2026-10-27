@@ -24,7 +24,7 @@ pub fn handler_get_version(command: Command<'_>) -> Result<CommandResponse<'_>, 
         response.append(&[major, minor, patch])?;
         Ok(response)
     } else {
-        Err(AppSW::VersionParsingFail)
+        Err(AppSW::WrongResponseLength)
     }
 }
 

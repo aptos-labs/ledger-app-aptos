@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust.
+ *   Ledger App Aptos.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,29 +22,26 @@ use crate::settings::Settings;
 use ledger_device_sdk::nbgl::{NbglGlyph, NbglHomeAndSettings};
 
 pub fn ui_menu_main(_: &mut Comm) -> NbglHomeAndSettings {
-    // Load glyph from 64x64 4bpp gif file with include_gif macro. Creates an NBGL compatible glyph.
     #[cfg(target_os = "apex_p")]
-    const FERRIS: NbglGlyph = NbglGlyph::from_include(include_gif!("glyphs/crab_48x48.png", NBGL));
+    const APP_ICON: NbglGlyph =
+        NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_48px.png", NBGL));
     #[cfg(any(target_os = "stax", target_os = "flex"))]
-    const FERRIS: NbglGlyph = NbglGlyph::from_include(include_gif!("glyphs/crab_64x64.gif", NBGL));
+    const APP_ICON: NbglGlyph =
+        NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_64px.gif", NBGL));
     #[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
-    const FERRIS: NbglGlyph =
+    const APP_ICON: NbglGlyph =
         NbglGlyph::from_include(include_gif!("glyphs/home_nano_nbgl.png", NBGL));
 
-    let settings_strings = [["Display Memo", "Allow display of transaction memo."]];
-    let mut settings: Settings = Default::default();
+    let settings_strings = [["Blind signing", "Enable blind signing"]];
+    let mut settings = Settings;
 
-    let title = if cfg!(feature = "variant_testnet") {
-        "Testnet Boilerplate"
-    } else if cfg!(feature = "variant_betanet") {
-        "Betanet Boilerplate"
-    } else {
-        "Boilerplate"
-    };
-
-    // Display the home screen.
     NbglHomeAndSettings::new()
-        .glyph(&FERRIS)
+        .glyph(&APP_ICON)
         .settings(settings.get_mut(), &settings_strings)
-        .infos(title, env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"))
+        .app_name("Aptos")
+        .info_list(&[
+            ("Version", env!("CARGO_PKG_VERSION")),
+            ("Developer", "Ledger"),
+            ("Copyright", "(c) 2024 Ledger"),
+        ])
 }
