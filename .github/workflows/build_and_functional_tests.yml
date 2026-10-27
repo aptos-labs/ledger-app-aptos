@@ -13,6 +13,7 @@ permissions:
   contents: write
   actions: write
   pull-requests: write
+  packages: read  # Needed to pull the app-builder image
 
 on:
   workflow_dispatch:

@@ -6,6 +6,7 @@ name: Run coding style check
 
 permissions:
   contents: read
+  packages: read  # Needed to pull the app-builder image
 
 on:
   workflow_dispatch:
