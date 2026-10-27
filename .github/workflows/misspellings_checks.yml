@@ -22,4 +22,4 @@ jobs:
     name: Check misspellings
     uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_spell_check.yml@v1
     with:
-      skip_path: './vendor/ledger_device_sdk/**'
+      skip_path: './vendor/ledger_device_sdk/**,vendor/ledger_device_sdk/**'
