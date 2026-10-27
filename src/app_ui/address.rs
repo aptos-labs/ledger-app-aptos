@@ -16,21 +16,32 @@
  *****************************************************************************/
 
 use crate::AppSW;
-use alloc::format;
+use arrayvec::ArrayString;
+use core::fmt::Write;
 
 use ledger_device_sdk::include_gif;
 use ledger_device_sdk::io::Comm;
-use ledger_device_sdk::nbgl::{NbglAddressReview, NbglGlyph};
+use ledger_device_sdk::nbgl::{Field, NbglAddressReview, NbglGlyph};
 
-// Display only the last 20 bytes of the address
-const DISPLAY_ADDR_BYTES_LEN: usize = 20;
+pub fn ui_display_pk(comm: &mut Comm, addr: &[u8; 32], path: &[u32]) -> Result<bool, AppSW> {
+    let mut addr_hex = [0u8; 66];
+    addr_hex[..2].copy_from_slice(b"0x");
+    hex::encode_to_slice(addr, &mut addr_hex[2..]).map_err(|_| AppSW::DisplayAddressFail)?;
+    let address = core::str::from_utf8(&addr_hex).map_err(|_| AppSW::DisplayAddressFail)?;
 
-pub fn ui_display_pk(comm: &mut Comm, addr: &[u8]) -> Result<bool, AppSW> {
-    let addr_hex = format!(
-        "0x{}",
-        hex::encode(&addr[addr.len() - DISPLAY_ADDR_BYTES_LEN..]).to_uppercase()
-    );
-
+    // Ten path components need at most 10 * (10 decimal digits + 1 apostrophe)
+    // plus nine separators. Keep the full path on the stack for NBGL.
+    let mut path_string = ArrayString::<128>::new();
+    for (index, component) in path.iter().enumerate() {
+        if index != 0 {
+            path_string.push('/');
+        }
+        write!(&mut path_string, "{}", component & 0x7fff_ffff)
+            .map_err(|_| AppSW::DisplayBip32PathFail)?;
+        if component & 0x8000_0000 != 0 {
+            path_string.push('\'');
+        }
+    }
     #[cfg(target_os = "apex_p")]
     const APP_ICON: NbglGlyph =
         NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_48px.png", NBGL));
@@ -41,8 +52,13 @@ pub fn ui_display_pk(comm: &mut Comm, addr: &[u8]) -> Result<bool, AppSW> {
     const APP_ICON: NbglGlyph =
         NbglGlyph::from_include(include_gif!("glyphs/home_nano_nbgl.png", NBGL));
 
+    let fields = [Field {
+        name: "Derivation path",
+        value: path_string.as_str(),
+    }];
     Ok(NbglAddressReview::new()
         .glyph(&APP_ICON)
         .review_title("Verify Aptos address")
-        .show(comm, &addr_hex))
+        .set_tag_value_list(&fields)
+        .show(comm, address))
 }

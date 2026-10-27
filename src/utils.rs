@@ -1,13 +1,16 @@
 use alloc::vec::Vec;
 
 use crate::AppSW;
-use ledger_device_sdk::ecc::{Secp256k1, SeedDerive};
-use ledger_device_sdk::hash::{sha3::Keccak256, HashInit};
+use ledger_device_sdk::ecc::{Ed25519, Secp256k1, SeedDerive};
+use ledger_device_sdk::hash::{
+    sha3::{Keccak256, Sha3_256},
+    HashInit,
+};
 
 /// BIP32 derivation path stored as a vector of u32 components.
 ///
-/// Each component represents one level in the path (e.g., m/44'/1'/0'/0/0 has 5 components).
-/// Hardened derivation is indicated by setting the high bit (>= 0x80000000).
+/// Aptos paths start at m/44'/637', include at least one additional component,
+/// and have only hardened components: Ed25519 SLIP-10 cannot derive normal children.
 #[derive(Default)]
 pub struct Bip32Path(Vec<u32>);
 
@@ -24,29 +27,27 @@ impl TryFrom<&[u8]> for Bip32Path {
     ///
     /// # Format
     ///
-    /// - First byte: Number of path components (e.g., 5 for m/44'/1'/0'/0/0)
+    /// - First byte: Number of path components (3..=10)
     /// - Remaining bytes: Big-endian u32 components (4 bytes each)
-    ///
-    /// # Example
-    ///
-    /// For path m/44'/1'/0'/0/0:
-    /// ```text
-    /// [0x05, 0x8000002C, 0x80000001, 0x80000000, 0x00000000, 0x00000000]
-    /// ```
-    ///
-    /// # Note
-    ///
-    /// This uses `Vec` for dynamic allocation, which is fine for normal APDU handlers
-    /// but CANNOT be used in swap's `check_address` or `get_printable_amount` due to
-    /// BSS memory sharing with the Exchange app.
+    /// - First two components: m/44'/637'
+    /// - All components hardened (Ed25519 SLIP-10)
+    /// A mismatch in encoded length is 0x6A87; unsupported paths are 0xB006.
     fn try_from(data: &[u8]) -> Result<Self, Self::Error> {
-        // Check data length
-        if data.is_empty() // At least the length byte is required
-            || (data[0] as usize * 4 != data.len() - 1)
-        {
+        if data.is_empty() || data[0] as usize * 4 != data.len() - 1 {
             return Err(AppSW::WrongDataLength);
         }
-
+        if !(3..=10).contains(&data[0]) {
+            return Err(AppSW::GetPubKeyFail);
+        }
+        if data[1..9] != [0x80, 0, 0, 44, 0x80, 0, 2, 125] {
+            return Err(AppSW::GetPubKeyFail);
+        }
+        if data[1..]
+            .chunks_exact(4)
+            .any(|component| component[0] & 0x80 == 0)
+        {
+            return Err(AppSW::GetPubKeyFail);
+        }
         Ok(Bip32Path(
             data[1..]
                 .chunks(4)
@@ -56,6 +57,35 @@ impl TryFrom<&[u8]> for Bip32Path {
     }
 }
 
+/// Derive the Aptos Ed25519 public key and chain code using SLIP-10.
+/// The SDK clears the derived private key and temporary seed on drop.
+pub fn derive_aptos_public_key(path: &[u32]) -> Result<([u8; 32], [u8; 32]), AppSW> {
+    let (private_key, chain_code) = Ed25519::derive_from_path_slip10_with_chaincode(path);
+    let public_key = private_key.public_key().map_err(|_| AppSW::GetPubKeyFail)?;
+
+    // Ledger represents Ed25519 public keys as uncompressed (X, Y). v1 transmits
+    // the compressed Y coordinate in little-endian, with X parity in its top bit.
+    let mut raw = [0u8; 32];
+    for (i, byte) in raw.iter_mut().enumerate() {
+        *byte = public_key.pubkey[64 - i];
+    }
+    if public_key.pubkey[32] & 1 != 0 {
+        raw[31] |= 0x80;
+    }
+    Ok((raw, chain_code.value))
+}
+
+/// Aptos account address: SHA3-256(compressed Ed25519 public key || scheme 0).
+pub fn aptos_address_from_pubkey(pubkey: &[u8; 32]) -> Result<[u8; 32], AppSW> {
+    let mut sha3 = Sha3_256::new();
+    let mut address = [0u8; 32];
+    sha3.update(pubkey).map_err(|_| AppSW::GetPubKeyFail)?;
+    sha3.update(&[0]).map_err(|_| AppSW::GetPubKeyFail)?;
+    sha3.finalize(&mut address)
+        .map_err(|_| AppSW::GetPubKeyFail)?;
+    Ok(address)
+}
+
 /// Derive the raw public key from a BIP32 path.
 ///
 /// Returns the uncompressed secp256k1 public key (65 bytes):
@@ -63,18 +93,7 @@ impl TryFrom<&[u8]> for Bip32Path {
 /// - Next 32 bytes: X coordinate
 /// - Last 32 bytes: Y coordinate
 ///
-/// # Used by
-///
-/// - `handler_get_public_key`: Returns this raw pubkey to the client
-/// - Internally for address computation
-///
-/// # Arguments
-///
-/// * `path` - BIP32 derivation path
-///
-/// # Returns
-///
-/// 65-byte uncompressed public key or error
+/// Retained for the existing secp256k1 swap path until swap adopts Aptos keys.
 pub fn get_pubkey_from_path(path: &Bip32Path) -> Result<[u8; 65], AppSW> {
     let (k, _) = Secp256k1::derive_from(path.as_ref());
     let pk = k.public_key().map_err(|_| AppSW::GetPubKeyFail)?;
