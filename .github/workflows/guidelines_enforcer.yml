@@ -8,13 +8,6 @@ name: Ensure compliance with Ledger guidelines
 # More information on the guidelines can be found in the repository:
 # LedgerHQ/ledger-app-workflows/
 
-# Must cover every permission reusable_guidelines_enforcer.yml declares.
-permissions:
-  contents: read
-  actions: write
-  pull-requests: write
-  packages: read  # Needed to pull the app-builder image
-
 on:
   workflow_dispatch:
   push:
@@ -24,6 +17,13 @@ on:
       - develop
       - next
   pull_request:
+
+# Must cover every permission reusable_guidelines_enforcer.yml declares.
+permissions:
+  contents: read
+  actions: write        # Needed for upload-artifact
+  pull-requests: write  # Needed for the nested reusable_build.yml call
+  packages: read        # Needed to pull the app-builder image
 
 jobs:
   guidelines_enforcer:
