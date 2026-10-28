@@ -40,8 +40,7 @@ use handlers::{
     sign_tx::{handler_sign_tx, TxContext},
 };
 use ledger_device_sdk::io::{self, init_comm, ApduHeader, Comm, Command, Reply};
-use ledger_device_sdk::libcall::swap::CreateTxParams;
-
+use swap::AptosCreateTxParams;
 ledger_device_sdk::set_panic!(ledger_device_sdk::exiting_panic);
 
 // Required for using String, Vec, format!...
@@ -195,9 +194,7 @@ extern "C" fn sample_main(arg0: u32) {
 /// * `swap_params` - Optional swap parameters. If present, the app runs in "swap mode":
 ///   - UI is bypassed (no main menu, no transaction review)
 ///   - Transaction is validated against swap params
-///   - Returns `true` if signed successfully, `false` otherwise
-pub fn normal_main(swap_params: Option<&CreateTxParams>) -> bool {
-    // The SDK rejects unexpected classes before handing commands to the app.
+pub fn normal_main(swap_params: Option<&AptosCreateTxParams>) -> bool {
     let comm = init_comm(&COMM);
     comm.set_expected_cla(APTOS_CLA);
 

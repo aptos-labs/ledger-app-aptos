@@ -49,27 +49,26 @@ def unpack_get_app_and_version_response(response: bytes) -> tuple[str, str]:
 
 # Unpack from response:
 # response = pub_key_len (1)
-#            pub_key (var)
+#            0x04 || raw Ed25519 public key (33)
 #            chain_code_len (1)
-#            chain_code (var)
+#            chain_code (32)
 def unpack_get_public_key_response(response: bytes) -> tuple[int, bytes, int, bytes]:
     response, pub_key_len, pub_key = pop_size_prefixed_buf_from_buf(response)
     response, chain_code_len, chain_code = pop_size_prefixed_buf_from_buf(response)
 
-    assert pub_key_len == 65
+    assert pub_key_len == 33
+    assert pub_key[0] == 0x04
     assert chain_code_len == 32
     assert len(response) == 0
-    return pub_key_len, pub_key, chain_code_len, chain_code
+    return pub_key_len, pub_key[1:], chain_code_len, chain_code
 
 
 # Unpack from response:
-# response = der_sig_len (1)
-#            der_sig (var)
-#            v (1)
-def unpack_sign_tx_response(response: bytes) -> tuple[int, bytes, int]:
-    response, der_sig_len, der_sig = pop_size_prefixed_buf_from_buf(response)
-    response, v = pop_sized_buf_from_buffer(response, 1)
+# response = signature_len (1)
+#            signature (64)
+def unpack_sign_tx_response(response: bytes) -> tuple[int, bytes]:
+    response, signature_len, signature = pop_size_prefixed_buf_from_buf(response)
 
+    assert signature_len == 64
     assert len(response) == 0
-
-    return der_sig_len, der_sig, int.from_bytes(v, byteorder="big")
+    return signature_len, signature

@@ -1,5 +1,4 @@
 import pytest
-
 from application_client.aptos_pubkey import AptosPubkeyClient, unpack_public_key
 from ragger.bip import CurveChoice, calculate_public_key_and_chaincode
 from ragger.error import ExceptionRAPDU
