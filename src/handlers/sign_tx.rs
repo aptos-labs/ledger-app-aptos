@@ -123,7 +123,7 @@ impl<'a> TxContext<'a> {
         }
         // SAFETY: only the single APDU loop writes this buffer. The input is
         // copied before the command's borrowed APDU storage is reused.
-        unsafe { (&mut *(&raw mut RAW_TRANSACTION))[self.len..end].copy_from_slice(data) };
+        unsafe { RAW_TRANSACTION[self.len..end].copy_from_slice(data) };
         self.len = end;
         Ok(())
     }
@@ -132,7 +132,7 @@ impl<'a> TxContext<'a> {
 fn payload_bytes(len: usize) -> &'static [u8] {
     // SAFETY: the SDK serializes APDUs and the single transaction flow owns
     // this static buffer. It is only read after all chunks have been copied.
-    unsafe { &(&*(&raw const RAW_TRANSACTION))[..len] }
+    unsafe { &RAW_TRANSACTION[..len] }
 }
 
 /// Classify a payload by comparing its first 32 bytes with Aptos's signing
