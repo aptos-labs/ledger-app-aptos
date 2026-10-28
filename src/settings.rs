@@ -21,4 +21,14 @@ impl Settings {
         storage.get_or_init(&[0; SETTINGS_SIZE]);
         storage
     }
+
+    /// Return whether Blind signing is enabled.
+    pub fn blind_signing_enabled(&mut self) -> bool {
+        self.get_mut().get_ref()[0] == 1
+    }
+
+    /// Enable Blind signing after explicit user confirmation.
+    pub fn enable_blind_signing(&mut self) {
+        self.get_mut().update(&[1]);
+    }
 }

@@ -86,6 +86,10 @@ The generic embedded/Rust rules are imported above; the points below are this ap
 
 <!-- Everything above this line is upstream boilerplate content; keep it untouched to minimise boilerplate-sync conflicts. -->
 
+## Aptos parity exceptions
+
+- v1 parity requires a Blind signing setting and gate. Blind signing defaults to off and may only be enabled after explicit user confirmation; this is the sanctioned exception to the generic no-blind-signing rule above.
+
 ## Agent skills
 
 ### Issue tracker

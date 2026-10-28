@@ -14,60 +14,61 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  *****************************************************************************/
-use crate::handlers::sign_tx::Tx;
+use crate::handlers::sign_tx::SigningPayload;
 use crate::AppSW;
 
 use ledger_device_sdk::include_gif;
 use ledger_device_sdk::io::Comm;
-use ledger_device_sdk::nbgl::{Field, NbglGlyph, NbglReview};
+use ledger_device_sdk::nbgl::{Field, NbglGlyph, NbglReview, TransactionType};
 
-use alloc::format;
+#[cfg(target_os = "apex_p")]
+const APP_ICON: NbglGlyph =
+    NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_48px.png", NBGL));
+#[cfg(any(target_os = "stax", target_os = "flex"))]
+const APP_ICON: NbglGlyph =
+    NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_64px.gif", NBGL));
+#[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
+const APP_ICON: NbglGlyph =
+    NbglGlyph::from_include(include_gif!("glyphs/home_nano_nbgl.png", NBGL));
 
-/// Displays a transaction and returns true if user approved it.
+/// Review a blind-signing payload.
 ///
-/// This method can return [`AppSW::TxDisplayFail`] error if the coin name length is too long.
-///
-/// # Arguments
-///
-/// * `comm` - Reference to the communication object
-/// * `tx` - Transaction to be displayed for validation
-pub fn ui_display_tx(comm: &mut Comm, tx: &Tx) -> Result<bool, AppSW> {
-    let value_str = format!("{} {}", tx.coin, tx.value);
-    let to_str = format!("0x{}", hex::encode(tx.to).to_uppercase());
+/// The transport signs the exact submitted bytes and does not decode message
+/// or transaction content.
+#[inline(never)]
+pub fn ui_display_sign_payload(comm: &mut Comm, payload: &SigningPayload) -> Result<bool, AppSW> {
+    let (title, finish, field_name, field_value, tx_type) = match payload {
+        SigningPayload::Message => (
+            "Review message",
+            "Sign message?",
+            "Message",
+            "Message",
+            TransactionType::Message,
+        ),
+        SigningPayload::RawTransaction => (
+            "Review transaction",
+            "Sign transaction?",
+            "Transaction type",
+            "RawTransaction",
+            TransactionType::Transaction,
+        ),
+        SigningPayload::RawTransactionWithData => (
+            "Review transaction",
+            "Sign transaction?",
+            "Transaction type",
+            "RawTransactionWithData",
+            TransactionType::Transaction,
+        ),
+    };
+    let fields = [Field {
+        name: field_name,
+        value: field_value,
+    }];
 
-    // Define transaction review fields
-    let my_fields = [
-        Field {
-            name: "Amount",
-            value: value_str.as_str(),
-        },
-        Field {
-            name: "Destination",
-            value: to_str.as_str(),
-        },
-        Field {
-            name: "Memo",
-            value: tx.memo,
-        },
-    ];
-
-    // Create transaction review
-
-    #[cfg(target_os = "apex_p")]
-    const APP_ICON: NbglGlyph =
-        NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_48px.png", NBGL));
-    #[cfg(any(target_os = "stax", target_os = "flex"))]
-    const APP_ICON: NbglGlyph =
-        NbglGlyph::from_include(include_gif!("glyphs/aptos_logo_64px.gif", NBGL));
-    #[cfg(any(target_os = "nanosplus", target_os = "nanox"))]
-    const APP_ICON: NbglGlyph =
-        NbglGlyph::from_include(include_gif!("glyphs/home_nano_nbgl.png", NBGL));
-
-    // Create NBGL review. Maximum number of fields and string buffer length can be customised
-    // with constant generic parameters of NbglReview. Default values are 32 and 1024 respectively.
-    let review: NbglReview = NbglReview::new()
-        .titles("Review transaction", "", "Sign transaction")
-        .glyph(&APP_ICON);
-
-    Ok(review.show(comm, &my_fields))
+    Ok(NbglReview::new()
+        .titles(title, "", finish)
+        .glyph(&APP_ICON)
+        .tx_type(tx_type)
+        .blind()
+        .show(comm, &fields))
 }

@@ -21,6 +21,7 @@ use ledger_device_sdk::io::Comm;
 use crate::settings::Settings;
 use ledger_device_sdk::nbgl::{NbglGlyph, NbglHomeAndSettings};
 
+#[inline(never)]
 pub fn ui_menu_main(_: &mut Comm) -> NbglHomeAndSettings {
     #[cfg(target_os = "apex_p")]
     const APP_ICON: NbglGlyph =

@@ -41,9 +41,10 @@ use handlers::{
 };
 use ledger_device_sdk::io::{self, init_comm, ApduHeader, Comm, Command, Reply};
 use swap::AptosCreateTxParams;
+
 ledger_device_sdk::set_panic!(ledger_device_sdk::exiting_panic);
 
-// Required for using String, Vec, format!...
+// Required for using Vec in the BIP32 path helper.
 extern crate alloc;
 
 use ledger_device_sdk::nbgl::{NbglReviewStatus, StatusType};
@@ -59,8 +60,17 @@ const P2_SIGN_TX_LAST: u8 = 0x00;
 const P2_SIGN_TX_MORE: u8 = 0x80;
 // P1 for first APDU number.
 const P1_SIGN_TX_START: u8 = 0x00;
-// P1 for maximum APDU number.
-const P1_SIGN_TX_MAX: u8 = 0x03;
+
+/// Maximum number of 255-byte payload chunks accepted after the path chunk.
+///
+/// P1 values above this limit are rejected as `WrongP1P2`, matching v1. The
+/// handler additionally returns `TxWrongLength` if its buffer would overflow.
+#[cfg(target_os = "nanosplus")]
+pub const MAX_TRANSACTION_PACKETS: u8 = 106;
+#[cfg(target_os = "nanox")]
+pub const MAX_TRANSACTION_PACKETS: u8 = 90;
+#[cfg(any(target_os = "stax", target_os = "flex", target_os = "apex_p"))]
+pub const MAX_TRANSACTION_PACKETS: u8 = 70;
 
 // Status words shared with the v1 APDU protocol.
 #[repr(u16)]
@@ -128,7 +138,9 @@ impl TryFrom<ApduHeader> for Instruction {
                 display: value.p1 != 0,
             }),
             (6, P1_SIGN_TX_START, P2_SIGN_TX_MORE)
-            | (6, 1..=P1_SIGN_TX_MAX, P2_SIGN_TX_LAST | P2_SIGN_TX_MORE) => {
+            | (6, 1..=u8::MAX, P2_SIGN_TX_LAST | P2_SIGN_TX_MORE)
+                if value.p1 <= MAX_TRANSACTION_PACKETS =>
+            {
                 Ok(Instruction::SignTx {
                     chunk: value.p1,
                     more: value.p2 == P2_SIGN_TX_MORE,
@@ -140,6 +152,7 @@ impl TryFrom<ApduHeader> for Instruction {
     }
 }
 
+#[inline(never)]
 fn show_status_and_home_if_needed(
     comm: &mut Comm,
     ins: &Instruction,
@@ -154,7 +167,12 @@ fn show_status_and_home_if_needed(
             (true, StatusType::Address)
         }
         (Instruction::SignTx { .. }, AppSW::Deny | AppSW::Ok) if tx_ctx.finished() => {
-            (true, StatusType::Transaction)
+            let kind = if tx_ctx.is_message() {
+                StatusType::Message
+            } else {
+                StatusType::Transaction
+            };
+            (true, kind)
         }
         (_, _) => (false, StatusType::Transaction),
     };
@@ -236,6 +254,9 @@ pub fn normal_main(swap_params: Option<&AptosCreateTxParams>) -> bool {
     }
 }
 
+// Keep APDU dispatch and status handling out of `normal_main`'s stack frame;
+// Nano X has only 2.8 KiB of stack once the v1-sized payload buffer is mapped.
+#[inline(never)]
 fn handle_apdu<'a>(
     command: Command<'a>,
     ins: &Instruction,
@@ -248,7 +269,10 @@ fn handle_apdu<'a>(
             Ok(response)
         }
         Instruction::GetVersion => handler_get_version(command),
-        Instruction::GetPubkey { display } => handler_get_public_key(command, *display),
+        Instruction::GetPubkey { display } => {
+            ctx.reset_signing();
+            handler_get_public_key(command, *display)
+        }
         Instruction::SignTx { chunk, more } => handler_sign_tx(command, *chunk, *more, ctx),
     }
 }
