@@ -27,9 +27,27 @@ Where **v2** is built until **Cutover**.
 _Avoid_: rust branch, v2 branch
 
 **Parity**:
-The state where **v2** does everything **v1** does.
+The state where **v2** does everything **v1** does, over **v1**'s APDU protocol and with the same review semantics, apart from recorded **Divergences**.
 _Avoid_: feature complete, done
+
+**Divergence**:
+A deliberate difference between **v2**'s behavior and **v1**'s, recorded in the PR that introduces it.
+_Avoid_: regression, deviation
+
+**Port unit**:
+One independently mergeable slice of **v1** behavior, ported to **Next** together with its **v1** functional tests and tracked as one issue in the "v2 parity" milestone.
+_Avoid_: feature PR, chunk
 
 **Cutover**:
 The one-time event when **v2** replaces **v1** on `main` and ships as 2.0.0.
 _Avoid_: launch, switchover, v2 merge
+
+## Signing
+
+**Clear signing**:
+Signing where the user reviews the decoded meaning of the payload (such as recipient, amount or function) before approving.
+_Avoid_: verified signing, safe signing
+
+**Blind signing**:
+Signing a payload the app cannot fully decode, permitted only when the user has enabled the Blind signing setting.
+_Avoid_: unverified signing, raw signing
