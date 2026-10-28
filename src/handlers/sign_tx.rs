@@ -16,6 +16,7 @@
  *****************************************************************************/
 use crate::app_ui::sign::ui_display_sign_payload;
 use crate::swap::AptosCreateTxParams;
+use crate::transaction::{Envelope, Transaction};
 use crate::utils::Bip32Path;
 use crate::{AppSW, MAX_TRANSACTION_PACKETS};
 use ledger_device_sdk::ecc::Ed25519;
@@ -24,23 +25,6 @@ use ledger_device_sdk::log::debug;
 use ledger_device_sdk::nbgl::{NbglChoice, NbglHomeAndSettings, NbglStatus};
 
 const MAX_TRANSACTION_LEN: usize = MAX_TRANSACTION_PACKETS as usize * 255;
-
-const RAW_TRANSACTION_PREFIX: [u8; 32] = [
-    181, 233, 125, 176, 127, 160, 189, 14, 85, 152, 170, 54, 67, 169, 188, 111, 102, 147, 189, 220,
-    26, 159, 236, 158, 103, 74, 70, 30, 170, 0, 177, 147,
-];
-const RAW_TRANSACTION_WITH_DATA_PREFIX: [u8; 32] = [
-    94, 250, 60, 79, 2, 248, 58, 15, 75, 45, 105, 252, 149, 198, 7, 204, 2, 130, 92, 196, 231, 190,
-    83, 110, 240, 153, 45, 240, 80, 217, 230, 124,
-];
-
-/// Minimum byte length of a `RawTransaction` body after its 32-byte prefix.
-///
-/// The transport does not decode the body; this bound only rejects a body too
-/// short to contain the fixed `RawTransaction` header fields.
-const MIN_RAW_TRANSACTION_BODY_LEN: usize = 32 + 8 + 1 + 8 + 8 + 8 + 1;
-/// `RawTransactionWithData` carries one variant byte before the transaction.
-const MIN_RAW_TRANSACTION_WITH_DATA_BODY_LEN: usize = 1 + MIN_RAW_TRANSACTION_BODY_LEN;
 
 // One APDU flow at a time is served by the SDK. Keeping the payload in BSS
 // avoids asking the 8 KiB heap to hold v1's 18–27 KiB transactions.
@@ -190,17 +174,13 @@ fn is_str_interrupted(input: &[u8]) -> bool {
 /// Classify a payload by its signing prefix and, for messages, by whether the
 /// content can be displayed faithfully.
 fn classify_payload(input: &[u8]) -> Result<SigningPayload, AppSW> {
-    if let Some(body) = input.strip_prefix(&RAW_TRANSACTION_PREFIX) {
-        if body.len() < MIN_RAW_TRANSACTION_BODY_LEN {
-            return Err(AppSW::TxParsingFail);
-        }
-        Ok(SigningPayload::RawTransaction)
-    } else if let Some(body) = input.strip_prefix(&RAW_TRANSACTION_WITH_DATA_PREFIX) {
-        if body.len() < MIN_RAW_TRANSACTION_WITH_DATA_BODY_LEN {
-            return Err(AppSW::TxParsingFail);
-        }
-        Ok(SigningPayload::RawTransactionWithData)
-    } else if input.iter().all(|&byte| byte <= 0x7F) {
+    if let Some(parsed) = Transaction::parse(input) {
+        return Ok(match parsed?.envelope {
+            Envelope::Raw => SigningPayload::RawTransaction,
+            Envelope::WithData => SigningPayload::RawTransactionWithData,
+        });
+    }
+    if input.iter().all(|&byte| byte <= 0x7F) {
         if is_str_interrupted(input) {
             Ok(SigningPayload::BlindAsciiMessage)
         } else {

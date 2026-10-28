@@ -18,6 +18,7 @@
 #![no_std]
 #![no_main]
 
+mod bcs;
 mod utils;
 mod app_ui {
     pub mod address;
@@ -32,6 +33,7 @@ mod handlers {
 
 mod settings;
 mod swap;
+mod transaction;
 
 use app_ui::menu::ui_menu_main;
 use handlers::{
