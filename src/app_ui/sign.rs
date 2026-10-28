@@ -15,15 +15,19 @@
  *  limitations under the License.
  *****************************************************************************/
 use alloc::borrow::Cow;
-use alloc::format;
-use alloc::string::String;
+use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use crate::bcs::ADDRESS_LEN;
 use crate::handlers::sign_tx::SigningPayload;
-use crate::transaction::{EntryFunction, Envelope, Payload, Transaction, OCTAS_PER_APT};
+use crate::tokens::{self, DEFAULT_DECIMALS};
+use crate::transaction::{
+    CoinType, EntryFunction, Envelope, Operation, Payload, Transaction, Transfer, APT_DECIMALS,
+};
 use crate::AppSW;
 
+use arrayvec::ArrayVec;
+use core::fmt::{self, Write};
 use core::str;
 
 use ledger_device_sdk::include_gif;
@@ -157,100 +161,301 @@ fn ui_display_message_stream(
 fn transaction_type(transaction: &Transaction) -> &'static str {
     match (transaction.envelope, &transaction.payload) {
         (Envelope::WithData, _) => "APTOS::RawTransactionWithData",
-        (Envelope::Raw, Payload::EntryFunction(_)) => "Function call",
+        (Envelope::Raw, Payload::EntryFunction(function)) => match function.operation {
+            None => "Function call",
+            Some(Operation::AptTransfer(_)) => "APT transfer",
+            Some(Operation::CoinTransfer { .. }) => "Coin transfer",
+        },
         (Envelope::Raw, Payload::Script) => "APTOS::RawTransaction [payload = SCRIPT]",
         (Envelope::Raw, Payload::Multisig) => "APTOS::RawTransaction [payload = MULTISIG]",
     }
 }
 
-/// Longest function name the review shows. v1 formats the name into a
-/// 120-byte buffer, and Nano X's 2 KiB heap cannot hold a full-length
-/// `0x<address>::<module>::<function>` twice (once here, once in the SDK's C
-/// copy), so longer names are cut the way v1 cuts them.
-const MAX_FUNCTION_NAME_LEN: usize = 119;
+/// Longest qualified name the review shows. v1 formats function names and
+/// coin types into 120-byte buffers, so longer names are cut the way v1
+/// cuts them.
+const MAX_QUALIFIED_NAME_LEN: usize = 119;
 
-/// Format an entry function as `0x<address>::<module>::<function>`, with
-/// leading zero bytes of the address dropped but at least one byte kept.
+/// Room a transaction review's formatted values need: six rows, two of
+/// which are cut qualified names and one a full address.
+const REVIEW_TEXT_LEN: usize = 384;
+
+/// Writes formatted text into a byte buffer, cutting it at a limit.
 ///
-/// Kept out of line so its scratch buffers never sit in the review's frame:
-/// Nano X's stack protector trips when that frame grows.
-#[inline(never)]
-fn function_name(function: &EntryFunction) -> String {
-    let address = function.module_address;
-    let first = address
-        .iter()
-        .position(|&byte| byte != 0)
-        .unwrap_or(address.len() - 1);
-    let mut hex = [0u8; 2 * ADDRESS_LEN];
-    let hex = &mut hex[..2 * (ADDRESS_LEN - first)];
-    // The output is exactly twice the input, so encoding cannot fail.
-    let _ = hex::encode_to_slice(&address[first..], hex);
-    hex.make_ascii_uppercase();
+/// Running out of buffer is an error: a value cut by anything other than
+/// its deliberate limit must never be shown as complete.
+struct TextWriter<'a> {
+    buffer: &'a mut [u8],
+    len: usize,
+    limit: usize,
+}
 
-    let mut name = String::with_capacity(MAX_FUNCTION_NAME_LEN);
-    // Every part is ASCII, so cutting at a byte never splits a character.
-    for part in [
-        "0x",
-        str::from_utf8(hex).unwrap_or_default(),
-        "::",
-        function.module,
-        "::",
-        function.function,
-    ] {
-        let room = MAX_FUNCTION_NAME_LEN - name.len();
-        name.push_str(&part[..part.len().min(room)]);
+impl fmt::Write for TextWriter<'_> {
+    fn write_str(&mut self, text: &str) -> fmt::Result {
+        // Every value is ASCII, so cutting at a byte never splits a character.
+        let end = self.len + text.len().min(self.limit - self.len);
+        if end > self.buffer.len() {
+            return Err(fmt::Error);
+        }
+        self.buffer[self.len..end].copy_from_slice(&text.as_bytes()[..end - self.len]);
+        self.len = end;
+        Ok(())
     }
-    name
 }
 
-/// Format octas as APT with eight decimals.
-fn gas_fee(octas: u64) -> String {
-    format!("APT {}.{:08}", octas / OCTAS_PER_APT, octas % OCTAS_PER_APT)
-}
-
-/// Review a transaction: its type, the function it calls and the gas fee.
+/// Hands out formatted values from a buffer the review borrows.
 ///
-/// Everything shown comes from the strictly parsed bytes. Transactions are
-/// blind-signed because they are not yet clear-signed.
-#[inline(never)]
-fn ui_display_transaction(comm: &mut Comm, bytes: &[u8]) -> Result<bool, AppSW> {
-    let transaction = Transaction::parse(bytes).ok_or(AppSW::TxParsingFail)??;
-    let function = match &transaction.payload {
-        Payload::EntryFunction(function) => Some(function_name(function)),
-        _ => None,
-    };
-    let fee = gas_fee(transaction.gas_fee);
+/// Nano X leaves the app a 2 KiB heap that the SDK's C copies of six rows
+/// nearly fill, so the app's own copy of each value lives outside it.
+struct Text<'a> {
+    free: &'a mut [u8],
+}
 
-    let mut fields = Vec::with_capacity(3);
-    fields.push(Field {
+impl<'a> Text<'a> {
+    /// Format `args`, cut at `limit` bytes.
+    fn format(&mut self, limit: usize, args: fmt::Arguments) -> Result<&'a str, AppSW> {
+        let mut writer = TextWriter {
+            buffer: self.free,
+            len: 0,
+            limit,
+        };
+        writer
+            .write_fmt(args)
+            .map_err(|_| AppSW::DisplayAmountFail)?;
+        let len = writer.len;
+        let (text, free) = core::mem::take(&mut self.free).split_at_mut(len);
+        self.free = free;
+        str::from_utf8(text).map_err(|_| AppSW::DisplayAmountFail)
+    }
+
+    /// `0x<address>::<module>::<name>`, with leading zero bytes of the
+    /// address dropped but at least one byte kept.
+    fn qualified_name(
+        &mut self,
+        address: &[u8; ADDRESS_LEN],
+        module: &str,
+        name: &str,
+    ) -> Result<&'a str, AppSW> {
+        let first = address
+            .iter()
+            .position(|&byte| byte != 0)
+            .unwrap_or(ADDRESS_LEN - 1);
+        self.format(
+            MAX_QUALIFIED_NAME_LEN,
+            format_args!("0x{}::{module}::{name}", Hex(&address[first..])),
+        )
+    }
+
+    fn function_name(&mut self, function: &EntryFunction) -> Result<&'a str, AppSW> {
+        self.qualified_name(function.module_address, function.module, function.function)
+    }
+
+    /// An account address as `0x` and all 64 hexadecimal digits.
+    fn address(&mut self, address: &[u8; ADDRESS_LEN]) -> Result<&'a str, AppSW> {
+        self.format(usize::MAX, format_args!("0x{}", Hex(address)))
+    }
+
+    /// Octas as APT with eight decimals.
+    fn apt_amount(&mut self, octas: u64) -> Result<&'a str, AppSW> {
+        self.format(
+            usize::MAX,
+            format_args!("APT {}", Decimal(octas, APT_DECIMALS)),
+        )
+    }
+}
+
+/// Uppercase hexadecimal digits, as v1 formats addresses.
+struct Hex<'a>(&'a [u8]);
+
+impl fmt::Display for Hex<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in self.0 {
+            write!(f, "{byte:02X}")?;
+        }
+        Ok(())
+    }
+}
+
+/// An integer amount as a decimal with exactly the given fraction digits,
+/// like v1's `format_fpu64`.
+struct Decimal(u64, u8);
+
+impl fmt::Display for Decimal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let Decimal(value, decimals) = *self;
+        let scale = 10u64.checked_pow(u32::from(decimals)).ok_or(fmt::Error)?;
+        write!(f, "{}", value / scale)?;
+        if decimals > 0 {
+            write!(
+                f,
+                ".{:0width$}",
+                value % scale,
+                width = usize::from(decimals)
+            )?;
+        }
+        Ok(())
+    }
+}
+
+/// The pages of a transaction review.
+struct TransactionReview<'a> {
+    title: &'static str,
+    finish_title: &'static str,
+    blind: bool,
+    rows: ArrayVec<Field<'a>, 6>,
+}
+
+/// Prepare a transaction review from the strictly parsed bytes.
+///
+/// A known framework operation is clear-signed; anything else is reviewed by
+/// its type, the function it calls and the gas fee, and must be blind-signed.
+///
+/// Boxed, and built in its own frame, so the review's frame stays small
+/// while NBGL runs below it on Nano X's 2.8 KiB stack.
+#[inline(never)]
+fn prepare_transaction_review<'a>(
+    bytes: &'a [u8],
+    text: &'a mut [u8],
+) -> Result<Box<TransactionReview<'a>>, AppSW> {
+    let transaction = Transaction::parse(bytes).ok_or(AppSW::TxParsingFail)??;
+    let mut text = Text { free: text };
+    let fee = text.apt_amount(transaction.gas_fee)?;
+    let mut rows = ArrayVec::new();
+    rows.push(Field {
         name: "Transaction type",
         value: transaction_type(&transaction),
     });
-    if let Some(function) = &function {
-        fields.push(Field {
-            name: "Function",
-            value: function,
-        });
-    }
-    fields.push(Field {
+    let (title, finish_title, blind) = match transaction.clear_signed_operation() {
+        Some((function, operation)) => {
+            rows.push(Field {
+                name: "Function",
+                value: text.function_name(function)?,
+            });
+            match operation {
+                Operation::AptTransfer(transfer) => {
+                    rows.push(Field {
+                        name: "Receiver",
+                        value: text.address(transfer.receiver)?,
+                    });
+                    rows.push(Field {
+                        name: "Amount",
+                        value: text.apt_amount(transfer.amount)?,
+                    });
+                    (
+                        "Review transaction to send Aptos",
+                        "Sign transaction?",
+                        false,
+                    )
+                }
+                Operation::CoinTransfer { coin, transfer } => {
+                    push_coin_transfer_rows(&mut rows, &mut text, &coin, &transfer)?;
+                    (
+                        "Review transaction to transfer coins",
+                        "Sign transaction to transfer coins?",
+                        false,
+                    )
+                }
+            }
+        }
+        None => {
+            if let Payload::EntryFunction(function) = &transaction.payload {
+                rows.push(Field {
+                    name: "Function",
+                    value: text.function_name(function)?,
+                });
+            }
+            ("Review transaction", "Sign transaction?", true)
+        }
+    };
+    rows.push(Field {
         name: "Gas fee",
-        value: &fee,
+        value: fee,
     });
+    Ok(Box::new(TransactionReview {
+        title,
+        finish_title,
+        blind,
+        rows,
+    }))
+}
 
-    Ok(NbglReview::new()
-        .titles("Review transaction", "", "Sign transaction?")
+/// A listed coin shows its ticker and decimals; an unlisted coin shows its
+/// full type and a raw amount.
+fn push_coin_transfer_rows<'a>(
+    rows: &mut ArrayVec<Field<'a>, 6>,
+    text: &mut Text<'a>,
+    coin: &CoinType,
+    transfer: &Transfer,
+) -> Result<(), AppSW> {
+    let amount = match tokens::find_coin(coin) {
+        Some(token) => text.format(
+            usize::MAX,
+            format_args!(
+                "{} {}",
+                token.ticker,
+                Decimal(transfer.amount, token.decimals)
+            ),
+        )?,
+        None => {
+            rows.push(Field {
+                name: "Coin Type",
+                value: text.qualified_name(coin.address, coin.module, coin.name)?,
+            });
+            text.format(
+                usize::MAX,
+                format_args!("{}", Decimal(transfer.amount, DEFAULT_DECIMALS)),
+            )?
+        }
+    };
+    rows.push(Field {
+        name: "Amount",
+        value: amount,
+    });
+    rows.push(Field {
+        name: "To",
+        value: text.address(transfer.receiver)?,
+    });
+    Ok(())
+}
+
+/// Review a transaction, formatting its values into `scratch`.
+///
+/// The scratch is the tail of the payload buffer, which a transaction under
+/// review leaves almost entirely free; a payload within [`REVIEW_TEXT_LEN`]
+/// bytes of the buffer's end falls back to the heap.
+#[inline(never)]
+fn ui_display_transaction(
+    comm: &mut Comm,
+    bytes: &[u8],
+    scratch: &mut [u8],
+) -> Result<bool, AppSW> {
+    let mut heap = Vec::new();
+    let text = if scratch.len() >= REVIEW_TEXT_LEN {
+        scratch
+    } else {
+        heap.resize(REVIEW_TEXT_LEN, 0);
+        heap.as_mut_slice()
+    };
+    let review = prepare_transaction_review(bytes, text)?;
+    let mut nbgl = NbglReview::new()
+        .titles(review.title, "", review.finish_title)
         .glyph(&APP_ICON)
-        .tx_type(TransactionType::Transaction)
-        .blind()
-        .show(comm, &fields))
+        .tx_type(TransactionType::Transaction);
+    if review.blind {
+        nbgl = nbgl.blind();
+    }
+    Ok(nbgl.show(comm, &review.rows))
 }
 
 /// Review a signed payload.
+///
+/// `scratch` is free memory a transaction review may format its values into.
 #[inline(never)]
 pub fn ui_display_sign_payload(
     comm: &mut Comm,
     payload: &SigningPayload,
     message: &[u8],
+    scratch: &mut [u8],
 ) -> Result<bool, AppSW> {
     if payload.is_message() {
         if message_requires_stream(payload, message) {
@@ -259,6 +464,6 @@ pub fn ui_display_sign_payload(
             ui_display_message_direct(comm, payload, message)
         }
     } else {
-        ui_display_transaction(comm, message)
+        ui_display_transaction(comm, message, scratch)
     }
 }

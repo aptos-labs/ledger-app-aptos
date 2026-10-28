@@ -16,9 +16,10 @@
  *****************************************************************************/
 use crate::app_ui::sign::ui_display_sign_payload;
 use crate::swap::AptosCreateTxParams;
-use crate::transaction::{Envelope, Transaction};
+use crate::transaction::Transaction;
 use crate::utils::Bip32Path;
 use crate::{AppSW, MAX_TRANSACTION_PACKETS};
+use core::slice;
 use ledger_device_sdk::ecc::Ed25519;
 use ledger_device_sdk::io::{Command, CommandResponse};
 use ledger_device_sdk::log::debug;
@@ -41,10 +42,11 @@ pub enum SigningPayload {
     BlindAsciiMessage,
     /// A non-ASCII message too long to display as hexadecimal.
     BlindRawMessage,
-    /// A payload prefixed by SHA3-256("APTOS::RawTransaction").
-    RawTransaction,
-    /// A payload prefixed by SHA3-256("APTOS::RawTransactionWithData").
-    RawTransactionWithData,
+    /// A `RawTransaction` calling a framework operation the app clear-signs.
+    ClearTransaction,
+    /// A transaction the app cannot fully decode: an unknown entry function,
+    /// a script, a multisig payload or a `RawTransactionWithData`.
+    BlindTransaction,
 }
 
 impl SigningPayload {
@@ -63,10 +65,7 @@ impl SigningPayload {
     pub fn requires_blind_signing(&self) -> bool {
         matches!(
             self,
-            Self::BlindAsciiMessage
-                | Self::BlindRawMessage
-                | Self::RawTransaction
-                | Self::RawTransactionWithData
+            Self::BlindAsciiMessage | Self::BlindRawMessage | Self::BlindTransaction
         )
     }
 }
@@ -146,7 +145,20 @@ impl<'a> TxContext<'a> {
 fn payload_bytes(len: usize) -> &'static [u8] {
     // SAFETY: the SDK serializes APDUs and the single transaction flow owns
     // this static buffer. It is only read after all chunks have been copied.
-    unsafe { &RAW_TRANSACTION[..len] }
+    unsafe { slice::from_raw_parts((&raw const RAW_TRANSACTION).cast::<u8>(), len) }
+}
+
+/// The unused tail of the payload buffer: scratch for a transaction
+/// review's formatted values.
+fn scratch_bytes(len: usize) -> &'static mut [u8] {
+    // SAFETY: disjoint from the payload in `..len`, and only the review
+    // borrows it, once per flow, after all chunks have been copied.
+    unsafe {
+        slice::from_raw_parts_mut(
+            (&raw mut RAW_TRANSACTION).cast::<u8>().add(len),
+            MAX_TRANSACTION_LEN - len,
+        )
+    }
 }
 
 /// Maximum length of a non-ASCII message shown in full as hexadecimal.
@@ -173,11 +185,13 @@ fn is_str_interrupted(input: &[u8]) -> bool {
 
 /// Classify a payload by its signing prefix and, for messages, by whether the
 /// content can be displayed faithfully.
+#[inline(never)]
 fn classify_payload(input: &[u8]) -> Result<SigningPayload, AppSW> {
     if let Some(parsed) = Transaction::parse(input) {
-        return Ok(match parsed?.envelope {
-            Envelope::Raw => SigningPayload::RawTransaction,
-            Envelope::WithData => SigningPayload::RawTransactionWithData,
+        return Ok(if parsed?.clear_signed_operation().is_some() {
+            SigningPayload::ClearTransaction
+        } else {
+            SigningPayload::BlindTransaction
         });
     }
     if input.iter().all(|&byte| byte <= 0x7F) {
@@ -285,7 +299,7 @@ pub fn handler_sign_tx<'a>(
             .show(comm, true);
     }
 
-    let approved = ui_display_sign_payload(comm, &payload, ctx.payload())?;
+    let approved = ui_display_sign_payload(comm, &payload, ctx.payload(), scratch_bytes(ctx.len))?;
     ctx.review_finished = true;
     if !approved {
         return Err(AppSW::Deny);

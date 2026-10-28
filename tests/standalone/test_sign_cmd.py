@@ -1,4 +1,4 @@
-"""Aptos SIGN_TX transport and blind-signing functional tests."""
+"""Aptos SIGN_TX transport, clear-signed transfer and blind-signing functional tests."""
 
 import hashlib
 
@@ -27,11 +27,21 @@ TRANSACTION = RAW_TRANSACTION_PREFIX + RAW_TRANSACTION_BODY
 # variant, the RawTransaction fixture body and one secondary signer.
 TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + RAW_TRANSACTION_BODY + b"\x01" + b"\x55" * 32
 
-# v1's short transaction: a coin::transfer. Until the known-function table is
-# ported (#24) every entry function is blind-signed with its qualified name.
+# v1's short transaction: `0x1::coin::transfer<0x1::aptos_coin::AptosCoin>` of 42 octas.
 SHORT_TRANSACTION = bytes.fromhex(
     "b5e97db07fa0bd0e5598aa3643a9bc6f6693bddc1a9fec9e674a461eaa00b193783135e8b00430253a22ba041d860c373d7a1501ccf7ac2d1ad37a8ed2775aee"
     "000000000000000002000000000000000000000000000000000000000000000000000000000000000104636f696e087472616e73666572010700000000000000000000000000000000000000000000000000000000000000010a6170746f735f636f696e094170746f73436f696e000220094c6fc0d3b382a599c37e1aaa7618eff2c96a3586876082c4594c50c50d7dde082a00000000000000204e0000000000006400000000000000565c51630000000022"
+)
+# v1's listed and unlisted token fixtures stop 255 bytes in, six bytes short of
+# a complete footer. v1 read the footer from the tail and displayed a garbage
+# gas fee; v2 parses front to back and rejects them.
+V1_TRUNCATED_LISTED_TRANSACTION = bytes.fromhex(
+    "b5e97db07fa0bd0e5598aa3643a9bc6f6693bddc1a9fec9e674a461eaa00b1934e5e65d5c7a3191e4310ecd210e8f0ff53823189123b47086d928bd574a573d1"
+    "14000000000000000200000000000000000000000000000000000000000000000000000000000000010d6170746f735f6163636f756e740e7472616e736665725f636f696e730107d11107bdf0d6d7040c6c0bfbdecb6545191fdf13e8d8d259952f53e1713f61b50b7374616b65645f636f696e0b5374616b65644170746f73000220a0d8abc262e3321f87d745bd5d687e8f3fb14c87d48f840b6b56867df0026ec808a0936c02000000000b0000000000000064000000000000005459d0"
+)
+V1_TRUNCATED_UNLISTED_TRANSACTION = bytes.fromhex(
+    "b5e97db07fa0bd0e5598aa3643a9bc6f6693bddc1a9fec9e674a461eaa00b1934e5e65d5c7a3191e4310ecd210e8f0ff53823189123b47086d928bd574a573d1"
+    "14000000000000000200000000000000000000000000000000000000000000000000000000000000010d6170746f735f6163636f756e740e7472616e736665725f636f696e730107804cef4821e11c55e87f2e9ec7dfc0d31d297cd34d20bfb2ae166e5069b40fe20b6c65646765725f636f696e0b4c65646765724170746f73000220a0d8abc262e3321f87d745bd5d687e8f3fb14c87d48f840b6b56867df0026ec808a0936c02000000000b0000000000000064000000000000005459d0"
 )
 
 
@@ -72,6 +82,91 @@ def _entry_function(module, function, address=b"\x00" * 31 + b"\x01"):
 
 def _multisig(inner_payload):
     return b"\x03" + b"\x22" * 32 + inner_payload
+
+
+FRAMEWORK = b"\x00" * 31 + b"\x01"
+LOOKALIKE_FRAMEWORK = b"\x00" * 30 + b"\x01\x01"
+# v1's listed-token fixture: sender, sequence number, receiver and amount.
+TOKEN_SENDER = bytes.fromhex("4e5e65d5c7a3191e4310ecd210e8f0ff53823189123b47086d928bd574a573d1")
+TOKEN_RECEIVER = bytes.fromhex("a0d8abc262e3321f87d745bd5d687e8f3fb14c87d48f840b6b56867df0026ec8")
+TOKEN_AMOUNT = 40670112
+DSTAPT_ADDRESS = bytes.fromhex("d11107bdf0d6d7040c6c0bfbdecb6545191fdf13e8d8d259952f53e1713f61b5")
+SHRIMP_ADDRESS = bytes.fromhex("55987edfab9a57f69bac759674f139ae473b5e09a9283848c1f87faf6fc1e789")
+LEDGER_COIN_ADDRESS = bytes.fromhex("804cef4821e11c55e87f2e9ec7dfc0d31d297cd34d20bfb2ae166e5069b40fe2")
+
+
+def _struct_tag(address, module, name):
+    return b"\x07" + address + _bcs_bytes(module) + _bcs_bytes(name) + b"\x00"
+
+
+def _transfer_arguments(receiver=TOKEN_RECEIVER, amount=TOKEN_AMOUNT):
+    return b"\x02" + _bcs_bytes(receiver) + _bcs_bytes(amount.to_bytes(8, "little"))
+
+
+def _apt_transfer(arguments=None, address=FRAMEWORK):
+    return (
+        b"\x02"
+        + address
+        + _bcs_bytes(b"aptos_account")
+        + _bcs_bytes(b"transfer")
+        + b"\x00"
+        + (arguments if arguments is not None else _transfer_arguments())
+    )
+
+
+def _coin_transfer(module, function, coin, arguments=None, address=FRAMEWORK):
+    return (
+        b"\x02"
+        + address
+        + _bcs_bytes(module)
+        + _bcs_bytes(function)
+        + b"\x01"
+        + coin
+        + (arguments if arguments is not None else _transfer_arguments())
+    )
+
+
+def _token_transaction(payload):
+    return RAW_TRANSACTION_PREFIX + TOKEN_SENDER + (20).to_bytes(8, "little") + payload + _footer(max_gas=11, gas_unit_price=100)
+
+
+DSTAPT = _struct_tag(DSTAPT_ADDRESS, b"staked_coin", b"StakedAptos")
+LISTED_TRANSACTIONS = {
+    # v1's listed fixture, completed: `aptos_account::transfer_coins<dstAPT>`.
+    "dstapt": _token_transaction(_coin_transfer(b"aptos_account", b"transfer_coins", DSTAPT)),
+    # The table matches case-insensitively, and SHRIMP has two decimals.
+    "shrimp_uppercase": _token_transaction(
+        _coin_transfer(b"coin", b"transfer", _struct_tag(SHRIMP_ADDRESS, b"SHRIMP", b"SHRIMPCOIN"))
+    ),
+    # The largest amount a transfer can carry.
+    "max_amount": _token_transaction(
+        _coin_transfer(b"aptos_account", b"transfer_coins", DSTAPT, _transfer_arguments(amount=2**64 - 1))
+    ),
+}
+UNLISTED_TRANSACTIONS = {
+    # v1's unlisted fixture, completed: `aptos_account::transfer_coins<LedgerAptos>`.
+    "ledger_coin": _token_transaction(
+        _coin_transfer(b"aptos_account", b"transfer_coins", _struct_tag(LEDGER_COIN_ADDRESS, b"ledger_coin", b"LedgerAptos"))
+    ),
+    # Only the full `0x1::aptos_coin::AptosCoin` type is APT: not a look-alike
+    # address, and not a case variant, since the framework's identifiers are canonical.
+    "lookalike_apt": _token_transaction(
+        _coin_transfer(b"coin", b"transfer", _struct_tag(LOOKALIKE_FRAMEWORK, b"aptos_coin", b"AptosCoin"))
+    ),
+    "uppercase_apt": _token_transaction(
+        _coin_transfer(b"coin", b"transfer", _struct_tag(FRAMEWORK, b"APTOS_COIN", b"APTOSCOIN"))
+    ),
+    # Maximum-length identifiers build the longest coin type a review can show.
+    "longest_coin_type": _token_transaction(
+        _coin_transfer(b"aptos_account", b"transfer_coins", _struct_tag(bytes.fromhex("ab" * 32), b"m" * 255, b"n" * 255))
+    ),
+}
+APT_TRANSFER_TRANSACTION = _token_transaction(_apt_transfer())
+ZERO_APT_TRANSFER_TRANSACTION = _token_transaction(_apt_transfer(_transfer_arguments(amount=0)))
+# A `coin::transfer` published outside `0x1` is not the framework's.
+LOOKALIKE_COIN_TRANSFER_TRANSACTION = _token_transaction(
+    _coin_transfer(b"coin", b"transfer", _struct_tag(FRAMEWORK, b"aptos_coin", b"AptosCoin"), address=LOOKALIKE_FRAMEWORK)
+)
 
 
 # Type arguments at every shape the decoder must walk: eight nested vectors
@@ -154,18 +249,19 @@ MALFORMED_TRANSACTIONS = [
     RAW_TRANSACTION_PREFIX + _raw_body(_entry_function(b"coin", b"")),
     # Identifiers are at most 255 bytes.
     RAW_TRANSACTION_PREFIX + _raw_body(_entry_function(b"coin", b"f" * 256)),
+    # Generic argument decoding runs for functions outside the clear-signed set.
     # Unknown type tag.
     RAW_TRANSACTION_PREFIX
-    + _raw_body(b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01\x12\x00"),
+    + _raw_body(b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"deposit") + b"\x01\x12\x00"),
     # Type arguments nested deeper than aptos-core deserializes.
     RAW_TRANSACTION_PREFIX
     + _raw_body(
-        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01" + b"\x06" * 9 + b"\x01\x00"
+        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"deposit") + b"\x01" + b"\x06" * 9 + b"\x01\x00"
     ),
     # Function type parameter that is neither a value nor a reference.
     RAW_TRANSACTION_PREFIX
     + _raw_body(
-        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01\x0b\x01\x03\x01\x00\x02\x00"
+        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"deposit") + b"\x01\x0b\x01\x03\x01\x00\x02\x00"
     ),
     # Unknown script argument variant.
     RAW_TRANSACTION_PREFIX + _raw_body(b"\x00" + _bcs_bytes(b"\xa1\x1c") + b"\x00" + b"\x01" + b"\x10\x00"),
@@ -188,15 +284,40 @@ MALFORMED_TRANSACTIONS = [
     RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x02" + _raw_body(SCRIPT_PAYLOAD) + b"\x00",
     # Multi-agent transaction missing its secondary signer list.
     RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + _raw_body(SCRIPT_PAYLOAD),
+    # v1's truncated token fixtures.
+    V1_TRUNCATED_LISTED_TRANSACTION,
+    V1_TRUNCATED_UNLISTED_TRANSACTION,
+    # Known framework operations with an unexpected shape are rejected, as in v1.
+    # `aptos_account::transfer` takes no type argument.
+    _token_transaction(
+        b"\x02" + FRAMEWORK + _bcs_bytes(b"aptos_account") + _bcs_bytes(b"transfer") + b"\x01" + DSTAPT + _transfer_arguments()
+    ),
+    # `coin::transfer` takes exactly one type argument.
+    _token_transaction(b"\x02" + FRAMEWORK + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x00" + _transfer_arguments()),
+    # The coin type argument must be a struct.
+    _token_transaction(_coin_transfer(b"coin", b"transfer", b"\x02")),
+    # The coin struct takes no type arguments.
+    _token_transaction(_coin_transfer(b"coin", b"transfer", DSTAPT[:-1] + b"\x01\x02")),
+    # Transfers take exactly two arguments.
+    _token_transaction(_apt_transfer(b"\x01" + _bcs_bytes(TOKEN_RECEIVER))),
+    _token_transaction(_apt_transfer(_transfer_arguments() + _bcs_bytes(b"\x01"))),
+    # The receiver is a 32-byte address.
+    _token_transaction(_apt_transfer(b"\x02" + _bcs_bytes(TOKEN_RECEIVER[:-1]) + _bcs_bytes(TOKEN_AMOUNT.to_bytes(8, "little")))),
+    # The amount is a u64.
+    _token_transaction(
+        _coin_transfer(
+            b"coin", b"transfer", DSTAPT, b"\x02" + _bcs_bytes(TOKEN_RECEIVER) + _bcs_bytes(TOKEN_AMOUNT.to_bytes(9, "little"))
+        )
+    ),
 ]
 
 
-def _review_message(firmware, navigator, test_name, default_screenshot_path):
+def _review_clear(firmware, navigator, test_name, default_screenshot_path, finish_text):
     if firmware.device.startswith("nano"):
         navigator.navigate_until_text_and_compare(
             NavInsID.RIGHT_CLICK,
             [NavInsID.BOTH_CLICK],
-            "Sign message?",
+            finish_text,
             default_screenshot_path,
             f"{test_name}/part0",
         )
@@ -211,6 +332,14 @@ def _review_message(firmware, navigator, test_name, default_screenshot_path):
             default_screenshot_path,
             f"{test_name}/part0",
         )
+
+
+def _review_message(firmware, navigator, test_name, default_screenshot_path):
+    _review_clear(firmware, navigator, test_name, default_screenshot_path, "Sign message?")
+
+
+def _review_transaction(firmware, navigator, test_name, default_screenshot_path):
+    _review_clear(firmware, navigator, test_name, default_screenshot_path, "Sign transaction")
 
 
 def _review_blind(firmware, navigator, test_name, default_screenshot_path, finish_text):
@@ -457,7 +586,7 @@ def test_blind_sign_tx_with_data(backend, firmware, navigator, test_name, defaul
     )
 
 
-def test_sign_tx_short_tx(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
+def test_sign_tx_short_tx(backend, firmware, navigator, test_name, default_screenshot_path):
     _sign_and_verify(
         backend,
         firmware,
@@ -465,6 +594,58 @@ def test_sign_tx_short_tx(backend, firmware, navigator, test_name, default_scree
         test_name,
         default_screenshot_path,
         SHORT_TRANSACTION,
+        _review_transaction,
+    )
+
+
+def test_sign_apt_transfer(backend, firmware, navigator, test_name, default_screenshot_path):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        APT_TRANSFER_TRANSACTION,
+        _review_transaction,
+    )
+
+
+@pytest.mark.parametrize("coin", LISTED_TRANSACTIONS.keys())
+def test_sign_listed_legacy_tokens(backend, firmware, navigator, test_name, default_screenshot_path, coin):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        f"{test_name}_{coin}",
+        default_screenshot_path,
+        LISTED_TRANSACTIONS[coin],
+        _review_transaction,
+    )
+
+
+@pytest.mark.parametrize("coin", UNLISTED_TRANSACTIONS.keys())
+def test_sign_unlisted_legacy_tokens(backend, firmware, navigator, test_name, default_screenshot_path, coin):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        f"{test_name}_{coin}",
+        default_screenshot_path,
+        UNLISTED_TRANSACTIONS[coin],
+        _review_transaction,
+    )
+
+
+def test_blind_sign_tx_coin_transfer_outside_framework(
+    backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing
+):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        LOOKALIKE_COIN_TRANSFER_TRANSACTION,
         _review_blind_transaction,
     )
 
@@ -557,6 +738,33 @@ def test_sign_long_ascii_msg_refused(backend, firmware, navigator, test_name, de
     client = AptosCommandSender(backend)
     with pytest.raises(ExceptionRAPDU) as error:
         with client.sign_tx(PATH, LONG_ASCII_MESSAGE):
+            if firmware.device.startswith("nano"):
+                navigator.navigate_until_text_and_compare(
+                    NavInsID.RIGHT_CLICK,
+                    [NavInsID.BOTH_CLICK],
+                    "Reject",
+                    default_screenshot_path,
+                    test_name,
+                )
+            else:
+                navigator.navigate_and_compare(
+                    default_screenshot_path,
+                    test_name,
+                    [
+                        NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
+                        NavInsID.USE_CASE_REVIEW_REJECT,
+                        NavInsID.USE_CASE_CHOICE_CONFIRM,
+                        NavInsID.USE_CASE_STATUS_DISMISS,
+                    ],
+                )
+    assert error.value.status == Errors.SW_DENY
+    assert error.value.data == b""
+
+
+def test_sign_apt_transfer_refused(backend, firmware, navigator, test_name, default_screenshot_path):
+    client = AptosCommandSender(backend)
+    with pytest.raises(ExceptionRAPDU) as error:
+        with client.sign_tx(PATH, ZERO_APT_TRANSFER_TRANSACTION):
             if firmware.device.startswith("nano"):
                 navigator.navigate_until_text_and_compare(
                     NavInsID.RIGHT_CLICK,

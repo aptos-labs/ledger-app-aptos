@@ -46,6 +46,9 @@ pub const MAX_IDENTIFIER_LEN: usize = 255;
 /// (`MAX_TYPE_TAG_NESTING` in move-core-types).
 const MAX_TYPE_TAG_NESTING: u8 = 8;
 
+/// The `TypeTag::Struct` variant index.
+pub const TYPE_TAG_STRUCT: u32 = 7;
+
 /// Reads BCS values front to back from a byte slice.
 pub struct Cursor<'a> {
     data: &'a [u8],
@@ -148,7 +151,7 @@ impl<'a> Cursor<'a> {
 
     fn skip_type_tag_at(&mut self, depth: u8) -> Result<()> {
         let tag = self.uleb128()?;
-        if matches!(tag, 6 | 7 | 11) && depth >= MAX_TYPE_TAG_NESTING {
+        if matches!(tag, 6 | TYPE_TAG_STRUCT | 11) && depth >= MAX_TYPE_TAG_NESTING {
             return Err(BcsError::Invalid);
         }
         match tag {
@@ -157,7 +160,7 @@ impl<'a> Cursor<'a> {
             // vector<T>
             6 => self.skip_type_tag_at(depth + 1),
             // struct: address, module, name, then type arguments
-            7 => {
+            TYPE_TAG_STRUCT => {
                 self.address()?;
                 self.identifier()?;
                 self.identifier()?;

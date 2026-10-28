@@ -33,6 +33,7 @@ mod handlers {
 
 mod settings;
 mod swap;
+mod tokens;
 mod transaction;
 
 use app_ui::menu::ui_menu_main;
