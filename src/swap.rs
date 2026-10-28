@@ -29,9 +29,27 @@ use ledger_device_sdk::libcall::{
     },
     SwapAppErrorCodeTrait,
 };
+use serde::Deserialize;
+use serde_json_core::from_slice;
 
-use crate::handlers::sign_tx::Tx;
 use crate::utils::{aptos_address_from_pubkey, derive_aptos_public_key};
+use crate::AppSW;
+
+/// Exchange transaction fields compared with the approved swap.
+#[derive(Deserialize)]
+pub struct SwapTransaction<'a> {
+    pub coin: &'a str,
+    pub value: u64,
+    #[serde(with = "hex::serde")]
+    pub to: [u8; 32],
+}
+
+/// Parse the Exchange transaction representation.
+#[inline(never)]
+pub fn parse_swap_transaction(input: &[u8]) -> Result<SwapTransaction<'_>, AppSW> {
+    let (transaction, _) = from_slice(input).map_err(|_| AppSW::TxParsingFail)?;
+    Ok(transaction)
+}
 
 // An Aptos address is `0x` followed by 64 hexadecimal digits. The SDK's
 // default 64-byte address buffer truncates it; 67 also fits the C terminator.
@@ -104,7 +122,7 @@ fn coin_config(config: &[u8]) -> Option<(&str, u8)> {
 /// Strictly compare the JSON transaction with the Exchange-approved details.
 pub fn check_swap_params(
     params: &AptosCreateTxParams,
-    tx: &Tx<'_>,
+    tx: &SwapTransaction<'_>,
 ) -> Result<(), SwapError<SwapAppErrorCode>> {
     use SwapErrorCommonCode as Code;
 

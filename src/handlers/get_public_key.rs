@@ -22,6 +22,7 @@ use ledger_device_sdk::io::{Command, CommandResponse};
 
 /// Derive an Aptos Ed25519 public key from a validated SLIP-10 path and,
 /// optionally, show the corresponding account address for user verification.
+#[inline(never)]
 pub fn handler_get_public_key(
     command: Command<'_>,
     display: bool,
