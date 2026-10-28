@@ -29,37 +29,93 @@ TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + RAW_TRANSAC
 
 SHORT_MESSAGE = b"Hello Ledger!"
 SHORT_RAW_MESSAGE = bytes.fromhex("01020304ff")
+LONG_ASCII_MESSAGE = b"The quick brown fox jumps over the lazy dog. " * 6
 LONG_RAW_MESSAGE = bytes(range(256)) * 3
+EMBEDDED_NUL_MESSAGE = b"Hello\x00Ledger"
 MALFORMED_TRANSACTION = RAW_TRANSACTION_PREFIX + b"\x00"
 MALFORMED_TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00"
 
 
-def _review_blind(firmware, navigator, test_name, default_screenshot_path):
+def _review_message(firmware, navigator, test_name, default_screenshot_path):
     if firmware.device.startswith("nano"):
-        instructions = [
+        navigator.navigate_until_text_and_compare(
             NavInsID.RIGHT_CLICK,
-            NavInsID.BOTH_CLICK,
-            NavInsID.RIGHT_CLICK,
-            NavInsID.BOTH_CLICK,
-            NavInsID.RIGHT_CLICK,
-            NavInsID.RIGHT_CLICK,
-            NavInsID.BOTH_CLICK,
-            NavInsID.BOTH_CLICK,
-        ]
+            [NavInsID.BOTH_CLICK],
+            "Sign message?",
+            default_screenshot_path,
+            f"{test_name}/part0",
+        )
     else:
-        instructions = [
-            NavInsID.USE_CASE_CHOICE_CONFIRM,
-            NavInsID.USE_CASE_STATUS_DISMISS,
-            NavInsID.USE_CASE_CHOICE_REJECT,
+        navigator.navigate_until_text_and_compare(
             NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
+            [
+                NavInsID.USE_CASE_REVIEW_CONFIRM,
+                NavInsID.USE_CASE_STATUS_DISMISS,
+            ],
+            "Hold to sign",
+            default_screenshot_path,
+            f"{test_name}/part0",
+        )
+
+
+def _review_blind(firmware, navigator, test_name, default_screenshot_path, finish_text):
+    if firmware.device.startswith("nano"):
+        navigator.navigate_and_compare(
+            default_screenshot_path,
+            f"{test_name}/part0",
+            [
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+                NavInsID.RIGHT_CLICK,
+                NavInsID.BOTH_CLICK,
+            ],
+            screen_change_after_last_instruction=False,
+        )
+        navigator.navigate_until_text_and_compare(
+            NavInsID.RIGHT_CLICK,
+            [NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK],
+            finish_text,
+            default_screenshot_path,
+            f"{test_name}/part1",
+        )
+    else:
+        navigator.navigate_and_compare(
+            default_screenshot_path,
+            f"{test_name}/part0",
+            [
+                NavInsID.USE_CASE_CHOICE_CONFIRM,
+                NavInsID.USE_CASE_STATUS_DISMISS,
+                NavInsID.USE_CASE_CHOICE_REJECT,
+                NavInsID.INFO_HEADER_TAP,
+                NavInsID.NAVIGATION_HEADER_TAP,
+            ],
+            screen_change_after_last_instruction=False,
+        )
+        navigator.navigate_until_text_and_compare(
             NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
-            NavInsID.USE_CASE_REVIEW_CONFIRM,
-            NavInsID.USE_CASE_STATUS_DISMISS,
-        ]
-    navigator.navigate_and_compare(
+            [
+                NavInsID.INFO_HEADER_TAP,
+                NavInsID.NAVIGATION_HEADER_TAP,
+                NavInsID.USE_CASE_REVIEW_CONFIRM,
+                NavInsID.USE_CASE_STATUS_DISMISS,
+            ],
+            "Hold to sign",
+            default_screenshot_path,
+            f"{test_name}/part1",
+        )
+
+
+def _review_blind_message(firmware, navigator, test_name, default_screenshot_path):
+    _review_blind(firmware, navigator, test_name, default_screenshot_path, "Sign message?")
+
+
+def _review_blind_transaction(firmware, navigator, test_name, default_screenshot_path):
+    _review_blind(
+        firmware,
+        navigator,
+        test_name,
         default_screenshot_path,
-        f"{test_name}/part0",
-        instructions,
+        "Sign transaction?",
     )
 
 
@@ -96,11 +152,12 @@ def _sign_and_verify(
     test_name,
     default_screenshot_path,
     payload,
+    review,
 ):
     public_key, _ = unpack_public_key(AptosPubkeyClient(backend).get_public_key(PATH).data)
     client = AptosCommandSender(backend)
     with client.sign_tx(PATH, payload):
-        _review_blind(firmware, navigator, test_name, default_screenshot_path)
+        review(firmware, navigator, test_name, default_screenshot_path)
     response = client.get_async_response()
     assert response is not None
     assert len(response.data) == 65
@@ -111,27 +168,138 @@ def _sign_and_verify(
         pytest.fail("Device signature does not verify against the exact submitted bytes")
 
 
-def test_sign_tx_short_msg(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
-    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, SHORT_MESSAGE)
+def test_sign_tx_short_msg(backend, firmware, navigator, test_name, default_screenshot_path):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        SHORT_MESSAGE,
+        _review_message,
+    )
 
 
-def test_sign_short_raw_msg(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
-    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, SHORT_RAW_MESSAGE)
+def test_sign_short_raw_msg(backend, firmware, navigator, test_name, default_screenshot_path):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        SHORT_RAW_MESSAGE,
+        _review_message,
+    )
+
+
+def test_sign_long_ascii_msg(backend, firmware, navigator, test_name, default_screenshot_path):
+    assert len(LONG_ASCII_MESSAGE) > 255
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        LONG_ASCII_MESSAGE,
+        _review_message,
+    )
+
+
+def test_sign_ascii_msg_at_direct_limit(backend, firmware, navigator, test_name, default_screenshot_path):
+    message = b"a" * 119
+    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, message, _review_message)
+
+
+def test_sign_ascii_msg_just_over_direct_limit(backend, firmware, navigator, test_name, default_screenshot_path):
+    message = b"a" * 120
+    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, message, _review_message)
+
+
+def test_sign_raw_msg_at_clear_limit(backend, firmware, navigator, test_name, default_screenshot_path):
+    message = b"\xff" * 59
+    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, message, _review_message)
+
+
+def test_sign_raw_msg_just_over_clear_limit(
+    backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing
+):
+    message = b"\xff" * 60
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        message,
+        _review_blind_message,
+    )
+
+
+def test_sign_long_ascii_msg_with_embedded_nul_is_blind(
+    backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing
+):
+    message = (b"The quick brown fox jumps over the lazy dog. " * 3)[:130] + b"\x00B"
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        message,
+        _review_blind_message,
+    )
+
+
+def test_sign_message_with_embedded_nul(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
+    assert EMBEDDED_NUL_MESSAGE.rstrip(b"\x00").count(b"\x00") == 1
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        EMBEDDED_NUL_MESSAGE,
+        _review_blind_message,
+    )
 
 
 def test_sign_long_raw_msg(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
     assert len(LONG_RAW_MESSAGE) > 255
-    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, LONG_RAW_MESSAGE)
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        LONG_RAW_MESSAGE,
+        _review_blind_message,
+    )
 
 
 def test_blind_sign_tx_long_tx(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
     assert len(TRANSACTION) > 255
-    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, TRANSACTION)
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        TRANSACTION,
+        _review_blind_transaction,
+    )
 
 
 def test_blind_sign_tx_with_data(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
     assert TRANSACTION_WITH_DATA.startswith(RAW_TRANSACTION_WITH_DATA_PREFIX)
-    _sign_and_verify(backend, firmware, navigator, test_name, default_screenshot_path, TRANSACTION_WITH_DATA)
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        TRANSACTION_WITH_DATA,
+        _review_blind_transaction,
+    )
 
 
 def test_sign_tx_refused(backend, firmware, navigator, test_name, default_screenshot_path):
@@ -162,6 +330,33 @@ def test_sign_tx_refused(backend, firmware, navigator, test_name, default_screen
                 )
         assert error.value.status == Errors.SW_DENY
         assert error.value.data == b""
+
+
+def test_sign_long_ascii_msg_refused(backend, firmware, navigator, test_name, default_screenshot_path):
+    client = AptosCommandSender(backend)
+    with pytest.raises(ExceptionRAPDU) as error:
+        with client.sign_tx(PATH, LONG_ASCII_MESSAGE):
+            if firmware.device.startswith("nano"):
+                navigator.navigate_until_text_and_compare(
+                    NavInsID.RIGHT_CLICK,
+                    [NavInsID.BOTH_CLICK],
+                    "Reject",
+                    default_screenshot_path,
+                    test_name,
+                )
+            else:
+                navigator.navigate_and_compare(
+                    default_screenshot_path,
+                    test_name,
+                    [
+                        NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
+                        NavInsID.USE_CASE_REVIEW_REJECT,
+                        NavInsID.USE_CASE_CHOICE_CONFIRM,
+                        NavInsID.USE_CASE_STATUS_DISMISS,
+                    ],
+                )
+    assert error.value.status == Errors.SW_DENY
+    assert error.value.data == b""
 
 
 def test_sign_tx_chunk_without_start(backend):
@@ -195,7 +390,7 @@ def test_sign_tx_out_of_order_chunk_can_be_resent(
     assert error.value.data == b""
     client.send_chunk(1, True, TRANSACTION[:100])
     with client.finish_chunk(2, TRANSACTION[100:]):
-        _review_blind(firmware, navigator, test_name, default_screenshot_path)
+        _review_blind_transaction(firmware, navigator, test_name, default_screenshot_path)
     response = client.get_async_response()
     assert response is not None
     assert response.data[0] == 64
@@ -224,7 +419,7 @@ def test_sign_tx_max_device_payload_and_packet_limit(
     assert error.value.status == Errors.SW_WRONG_P1P2
     assert error.value.data == b""
     with client.finish_chunk(max_chunks, message[(max_chunks - 1) * 255 :]):
-        _review_blind(firmware, navigator, test_name, default_screenshot_path)
+        _review_blind_message(firmware, navigator, test_name, default_screenshot_path)
     response = client.get_async_response()
     assert response is not None
     assert response.data[0] == 64

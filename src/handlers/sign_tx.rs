@@ -46,15 +46,45 @@ const MIN_RAW_TRANSACTION_WITH_DATA_BODY_LEN: usize = 1 + MIN_RAW_TRANSACTION_BO
 // avoids asking the 8 KiB heap to hold v1's 18–27 KiB transactions.
 static mut RAW_TRANSACTION: [u8; MAX_TRANSACTION_LEN] = [0; MAX_TRANSACTION_LEN];
 
-/// Payload classification derived from the leading 32-byte signing prefix.
+/// Payload classification derived from the leading bytes and message content.
 #[derive(Clone, Copy, Debug)]
 pub enum SigningPayload {
-    /// Any payload without a known Aptos transaction signing prefix.
-    Message,
+    /// An ASCII message without an embedded NUL that interrupts the text.
+    ClearAsciiMessage,
+    /// A short non-ASCII message displayed as hexadecimal.
+    ShortRawMessage,
+    /// An ASCII message whose text is interrupted by an embedded NUL.
+    BlindAsciiMessage,
+    /// A non-ASCII message too long to display as hexadecimal.
+    BlindRawMessage,
     /// A payload prefixed by SHA3-256("APTOS::RawTransaction").
     RawTransaction,
     /// A payload prefixed by SHA3-256("APTOS::RawTransactionWithData").
     RawTransactionWithData,
+}
+
+impl SigningPayload {
+    /// Return whether the payload is one of the message variants.
+    pub fn is_message(&self) -> bool {
+        matches!(
+            self,
+            Self::ClearAsciiMessage
+                | Self::ShortRawMessage
+                | Self::BlindAsciiMessage
+                | Self::BlindRawMessage
+        )
+    }
+
+    /// Return whether the user must enable Blind signing before review.
+    pub fn requires_blind_signing(&self) -> bool {
+        matches!(
+            self,
+            Self::BlindAsciiMessage
+                | Self::BlindRawMessage
+                | Self::RawTransaction
+                | Self::RawTransactionWithData
+        )
+    }
 }
 
 /// State for the chunked SIGN_TX flow.
@@ -75,7 +105,7 @@ impl<'a> TxContext<'a> {
             len: 0,
             next_chunk: None,
             review_finished: false,
-            payload: SigningPayload::Message,
+            payload: SigningPayload::ClearAsciiMessage,
             home: NbglHomeAndSettings::default(),
             swap_params: None,
         }
@@ -101,12 +131,12 @@ impl<'a> TxContext<'a> {
         self.len = 0;
         self.next_chunk = None;
         self.review_finished = false;
-        self.payload = SigningPayload::Message;
+        self.payload = SigningPayload::ClearAsciiMessage;
     }
 
     /// Return whether the completed payload was classified as a message.
     pub fn is_message(&self) -> bool {
-        matches!(self.payload, SigningPayload::Message)
+        self.payload.is_message()
     }
 
     fn payload(&self) -> &'static [u8] {
@@ -135,8 +165,30 @@ fn payload_bytes(len: usize) -> &'static [u8] {
     unsafe { &RAW_TRANSACTION[..len] }
 }
 
-/// Classify a payload by comparing its first 32 bytes with Aptos's signing
-/// prefixes.
+/// Maximum length of a non-ASCII message shown in full as hexadecimal.
+///
+/// v1 formats raw messages into a 120-byte display buffer; two hexadecimal
+/// digits per byte plus the terminator fit at most 59 bytes.
+const MAX_SHORT_RAW_MESSAGE_LEN: usize = 59;
+
+/// Return whether a NUL is followed by more text, which v1 calls an
+/// interrupted string. Trailing NUL bytes do not hide displayed content.
+fn is_str_interrupted(input: &[u8]) -> bool {
+    let mut interrupted = false;
+    for &byte in input {
+        if !interrupted && byte == 0 {
+            interrupted = true;
+            continue;
+        }
+        if interrupted && byte != 0 {
+            return true;
+        }
+    }
+    false
+}
+
+/// Classify a payload by its signing prefix and, for messages, by whether the
+/// content can be displayed faithfully.
 fn classify_payload(input: &[u8]) -> Result<SigningPayload, AppSW> {
     if let Some(body) = input.strip_prefix(&RAW_TRANSACTION_PREFIX) {
         if body.len() < MIN_RAW_TRANSACTION_BODY_LEN {
@@ -148,8 +200,16 @@ fn classify_payload(input: &[u8]) -> Result<SigningPayload, AppSW> {
             return Err(AppSW::TxParsingFail);
         }
         Ok(SigningPayload::RawTransactionWithData)
+    } else if input.iter().all(|&byte| byte <= 0x7F) {
+        if is_str_interrupted(input) {
+            Ok(SigningPayload::BlindAsciiMessage)
+        } else {
+            Ok(SigningPayload::ClearAsciiMessage)
+        }
+    } else if input.len() <= MAX_SHORT_RAW_MESSAGE_LEN {
+        Ok(SigningPayload::ShortRawMessage)
     } else {
-        Ok(SigningPayload::Message)
+        Ok(SigningPayload::BlindRawMessage)
     }
 }
 
@@ -226,7 +286,7 @@ pub fn handler_sign_tx<'a>(
 
     let comm = command.into_comm();
     let mut settings = crate::settings::Settings;
-    if !settings.blind_signing_enabled() {
+    if payload.requires_blind_signing() && !settings.blind_signing_enabled() {
         debug!("SIGN_TX: requesting Blind signing enablement");
         if !NbglChoice::new().show(
             comm,
@@ -245,7 +305,7 @@ pub fn handler_sign_tx<'a>(
             .show(comm, true);
     }
 
-    let approved = ui_display_sign_payload(comm, &payload)?;
+    let approved = ui_display_sign_payload(comm, &payload, ctx.payload())?;
     ctx.review_finished = true;
     if !approved {
         return Err(AppSW::Deny);
