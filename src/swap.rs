@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust - Swap Feature
+ *   Ledger App Aptos.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,432 +15,242 @@
  *  limitations under the License.
  *****************************************************************************/
 
-//! Swap Feature Implementation
-//!
-//! This module implements the "swap" feature, which allows the Ledger Exchange app
-//! to call this coin app as a library to validate addresses and amounts before
-//! signing swap transactions.
-//!
-//! ## Important Constraints
-//!
-//! When called as a library by the Exchange app (via `os_lib_call`), this code runs
-//! under special constraints:
-//!
-//! - **No heap allocation** in `check_address` and `get_printable_amount`:
-//!   The Exchange app shares BSS memory with the coin app. Writing to BSS (which
-//!   includes heap allocations via `Vec`, `String`, etc.) will trigger integrity
-//!   check failures and crash the device. Use stack-allocated types like arrays
-//!   and `ArrayString` instead.
-//!
-//! - **BSS is reset** only before `sign_transaction`: The SDK calls `c_reset_bss()`
-//!   before the signing phase, making heap allocation safe at that point.
-//!
-//! ## Swap Flow
-//!
-//! 1. **CHECK_ADDRESS**: Verify the destination address belongs to this device
-//! 2. **GET_PRINTABLE_AMOUNT**: Format amounts for display (fees, totals)
-//! 3. **SIGN_TRANSACTION**: Sign the transaction (UI bypass - already validated by Exchange)
+//! Aptos Exchange library integration. Address and amount operations run
+//! before the SDK resets BSS, so they use only stack storage.
 
 use arrayvec::ArrayString;
 use core::fmt::Write;
-use ledger_device_sdk::{
-    ecc::{Secp256k1, SeedDerive},
-    libcall::{
-        self,
-        string::uint256_to_float,
-        swap::{
-            self, CheckAddressParams, CreateTxParams, PrintableAmountParams, SwapError,
-            SwapErrorCommonCode,
-        },
-        SwapAppErrorCodeTrait,
+use ledger_device_sdk::libcall::{
+    self,
+    string::uint256_to_float,
+    swap::{
+        self, CheckAddressParams, CreateTxParams, PrintableAmountParams, SwapError,
+        SwapErrorCommonCode,
     },
-    log,
+    SwapAppErrorCodeTrait,
 };
 
 use crate::handlers::sign_tx::Tx;
-use crate::utils::get_address_hash_from_pubkey;
-use alloc::{format, string::ToString};
+use crate::utils::{aptos_address_from_pubkey, derive_aptos_public_key};
 
-/// Application-specific swap error codes.
-///
-/// This enum defines the lower byte of the 2-byte error code used in swap error responses.
-/// It provides additional context and refinement to the common error codes defined in
-/// [`ledger_device_sdk::libcall::swap::SwapErrorCommonCode`].
-///
-/// # Error Code Structure
-///
-/// The complete 2-byte error code is structured as:
-/// - **Upper byte**: Common error code from `SwapErrorCommonCode` (e.g., `ErrorWrongAmount`)
-/// - **Lower byte**: Application-specific code from this enum (for additional context)
-///
-/// # Usage
-///
-/// When returning a swap error, combine a common code with an app-specific code:
-///
-/// ```rust,ignore
-/// use ledger_device_sdk::libcall::swap::SwapErrorCommonCode;
-///
-/// // Example: Amount validation failed, no app-specific refinement needed
-/// comm.append(&[
-///     SwapErrorCommonCode::ErrorWrongAmount as u8,
-///     SwapAppErrorCode::Default as u8
-/// ]);
-/// comm.append(b"Amount mismatch: tx=1000, swap=2000");
-/// ```
-///
-/// # Template Note
-///
-/// This is a template/placeholder enum. In a production application, you may want to add
-/// specific error codes to provide more granular error information. For example:
-///
-/// ```rust,ignore
-/// pub enum SwapAppErrorCode {
-///     Default = 0x00,
-///     AmountOverflow = 0x01,
-///     AmountUnderflow = 0x02,
-///     InvalidAddressChecksum = 0x03,
-///     // ... add your application-specific codes
-/// }
-/// ```
-///
-/// Refer to the C SDK's `swap_error_code_helpers.h` for the specification.
+// An Aptos address is `0x` followed by 64 hexadecimal digits. The SDK's
+// default 64-byte address buffer truncates it; 67 also fits the C terminator.
+pub type AptosCreateTxParams = CreateTxParams<16, 67, 32>;
+type AptosCheckAddressParams = CheckAddressParams<16, 67, 32>;
+type AptosPrintableAmountParams = PrintableAmountParams<16, 67, 32>;
+
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy)]
 pub enum SwapAppErrorCode {
-    /// Default application error code (no specific refinement).
-    ///
-    /// Use this when the common error code from `SwapErrorCommonCode` is sufficient
-    /// and no additional application-specific context is needed.
-    Default = 0x00,
-    /// Other error codes, don't hesitate to add your own for more granularity.
-    AmountCastFail = 0x01,
-    DestinationDecodeFail = 0x02,
+    Default = 0,
+    InvalidAmount = 1,
+    InvalidAddress = 2,
+    InvalidCoinConfig = 3,
 }
 
 impl SwapAppErrorCodeTrait for SwapAppErrorCode {
-    // Cast is safe as enum is #[repr(u8)]
     fn as_u8(self) -> u8 {
         self as u8
     }
 }
 
-//  --8<-- [start:check_swap_params]
-/// This function performs a strict validation of the transaction to be signed
-/// against the reference transaction parameters provided by the Exchange app.
-/// It checks that:
-/// 1. The transaction type matches the expected one (Only one type of Tx implemented so auto true).
-/// 2. The transaction amount matches the swap amount exactly.
-/// 3. The transaction fees matches the swap fees exactly. (fees are not implemented so auto true).
-/// 4. The destination address matches the swap destination address exactly.
-///
-/// # Errors
-///
-/// Returns error if:
-/// - Amount parsing fails (AmountCastFail)
-/// - Amount doesn't match between tx and swap params (ErrorWrongAmount)
-/// - Destination address has invalid UTF-8 (DestinationDecodeFail)
-/// - Destination address hex decode fails (DestinationDecodeFail)
-/// - Destination address doesn't match (ErrorWrongDestination)
+fn swap_error(code: SwapErrorCommonCode, detail: SwapAppErrorCode) -> SwapError<SwapAppErrorCode> {
+    SwapError::without_message(code, detail)
+}
+
+/// Decode Exchange's right-aligned, big-endian amount without truncation.
+fn exchange_amount(bytes: &[u8; 16], length: usize) -> Option<u64> {
+    if length == 0 || length > 16 || bytes[..8].iter().any(|byte| *byte != 0) {
+        return None;
+    }
+    Some(u64::from_be_bytes(bytes[8..].try_into().ok()?))
+}
+
+fn hex_digit(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+/// Require the full prefixed 32-byte Aptos account address.
+fn decode_address(input: &[u8]) -> Option<[u8; 32]> {
+    if input.len() != 66 || input[..2] != *b"0x" {
+        return None;
+    }
+    let mut address = [0u8; 32];
+    for (out, pair) in address.iter_mut().zip(input[2..].chunks_exact(2)) {
+        *out = (hex_digit(pair[0])? << 4) | hex_digit(pair[1])?;
+    }
+    Some(address)
+}
+
+/// The Exchange subconfiguration is `[ticker_length, ticker..., decimals]`.
+fn coin_config(config: &[u8]) -> Option<(&str, u8)> {
+    let (&ticker_len, rest) = config.split_first()?;
+    let ticker_len = ticker_len as usize;
+    if ticker_len == 0 || ticker_len > 13 || rest.len() != ticker_len + 1 {
+        return None;
+    }
+    let ticker = core::str::from_utf8(&rest[..ticker_len]).ok()?;
+    if !ticker.bytes().all(|byte| byte.is_ascii_graphic()) {
+        return None;
+    }
+    Some((ticker, rest[ticker_len]))
+}
+
+/// Strictly compare the JSON transaction with the Exchange-approved details.
 pub fn check_swap_params(
-    params: &CreateTxParams,
-    tx: &Tx,
+    params: &AptosCreateTxParams,
+    tx: &Tx<'_>,
 ) -> Result<(), SwapError<SwapAppErrorCode>> {
-    log::debug!("Swap mode detected\n");
+    use SwapErrorCommonCode as Code;
 
-    // Validate amount
-    // Parse amount (u64 from big-endian bytes, right aligned in 16-byte buffer)
-    // Amount is stored in AMOUNT_BUF_SIZE (16 bytes) buffer, right-aligned big-endian
-    let start = params.amount.len() - 8;
-    let amount_bytes: [u8; 8] = params.amount[start..].try_into().map_err(|_| {
-        SwapError::without_message(
-            SwapErrorCommonCode::ErrorWrongAmount,
-            SwapAppErrorCode::AmountCastFail,
-        )
-    })?;
-    let swap_amount = u64::from_be_bytes(amount_bytes);
-
-    //  --8<-- [start:SwapError_example]
-    if tx.value != swap_amount {
-        log::debug!("Swap amount mismatch\n");
-        debug_u64("Tx: ", tx.value);
-        debug_u64("Swap: ", swap_amount);
-        // Error detected, we return the error with detailed message in common SDK defined format
-        return Err(SwapError::with_message(
-            SwapErrorCommonCode::ErrorWrongAmount,
+    let config = params
+        .coin_config
+        .get(..params.coin_config_len)
+        .ok_or_else(|| swap_error(Code::ErrorWrongMethod, SwapAppErrorCode::InvalidCoinConfig))?;
+    let expected_coin = if config.is_empty() {
+        "APT"
+    } else {
+        coin_config(config)
+            .map(|(ticker, _)| ticker)
+            .ok_or_else(|| {
+                swap_error(Code::ErrorWrongMethod, SwapAppErrorCode::InvalidCoinConfig)
+            })?
+    };
+    if tx.coin != expected_coin {
+        return Err(swap_error(
+            Code::ErrorWrongMethod,
             SwapAppErrorCode::Default,
-            format!("Amount tx {} != swap {}", tx.value, swap_amount),
         ));
     }
-    //  --8<-- [end:SwapError_example]
 
-    // Validate destination
-    let dest_str =
-        core::str::from_utf8(&params.dest_address[..params.dest_address_len]).map_err(|_| {
-            SwapError::with_message(
-                SwapErrorCommonCode::ErrorWrongDestination,
-                SwapAppErrorCode::DestinationDecodeFail,
-                "Failed to read destination hex".to_string(),
+    let swap_amount = exchange_amount(&params.amount, params.amount_len)
+        .ok_or_else(|| swap_error(Code::ErrorWrongAmount, SwapAppErrorCode::InvalidAmount))?;
+    if tx.value != swap_amount {
+        return Err(swap_error(
+            Code::ErrorWrongAmount,
+            SwapAppErrorCode::Default,
+        ));
+    }
+
+    if params.dest_address_extra_id_len != 0 {
+        return Err(swap_error(
+            Code::ErrorWrongDestination,
+            SwapAppErrorCode::InvalidAddress,
+        ));
+    }
+    let recipient = params
+        .dest_address
+        .get(..params.dest_address_len)
+        .and_then(decode_address)
+        .ok_or_else(|| {
+            swap_error(
+                Code::ErrorWrongDestination,
+                SwapAppErrorCode::InvalidAddress,
             )
         })?;
-    let dest_hex = dest_str.strip_prefix("0x").unwrap_or(dest_str);
-
-    let mut swap_dest = [0u8; 20];
-    if hex::decode_to_slice(dest_hex, &mut swap_dest).is_err() {
-        log::error!("Swap dest hex decode fail");
-        return Err(SwapError::with_message(
-            SwapErrorCommonCode::ErrorWrongDestination,
-            SwapAppErrorCode::DestinationDecodeFail,
-            format!("Failed to decode destination hex: {}", dest_hex),
-        ));
-    }
-
-    if tx.to != swap_dest {
-        log::error!("Swap destination mismatch");
-        log::error!("Tx: {:x?}", &tx.to);
-        log::error!("Swap: {:x?}", &swap_dest);
-        // Only build hex strings for error message (not on happy path)
-        let tx_hex = hex::encode(tx.to);
-        let swap_hex = hex::encode(swap_dest);
-        return Err(SwapError::with_message(
-            SwapErrorCommonCode::ErrorWrongDestination,
+    if tx.to != recipient {
+        return Err(swap_error(
+            Code::ErrorWrongDestination,
             SwapAppErrorCode::Default,
-            format!("Destination mismatch: tx {} != swap {}", tx_hex, swap_hex),
         ));
     }
-
-    log::debug!("Swap validation success, bypassing UI");
     Ok(())
 }
-//  --8<-- [end:check_swap_params]
 
-/// Helper function to print u64 for debugging.
-pub fn debug_u64(label: &str, val: u64) {
-    let mut buf = ArrayString::<64>::new();
-    let _ = writeln!(&mut buf, "{}{}", label, val);
-    log::debug!("{}", buf.as_str());
-}
-
-/// Helper function to print hex-encoded bytes for debugging.
-/// Uses stack-allocated buffer to avoid BSS writes.
-pub fn debug_hex(label: &str, data: &[u8]) {
-    log::debug!("{}", label);
-    let mut buf = ArrayString::<140>::new();
-    for b in data {
-        let _ = write!(&mut buf, "{:02x}", b);
-    }
-    let _ = writeln!(&mut buf);
-    log::debug!("{}", buf.as_str());
-}
-
-// --8<-- [start:swap_main]
-/// Main entry point when app is called as a library by the Exchange app.
-///
-/// # Arguments
-///
-/// * `arg0` - Parameter passed by `os_lib_call` containing command and data pointers
-///
-/// The Exchange app calls this function with different commands during a swap:
-/// - `SwapCheckAddress`: Validate that an address belongs to this device
-/// - `SwapGetPrintableAmount`: Format amounts/fees for display
-/// - `SwapSignTransaction`: Sign the final transaction
+/// Dispatch the three Exchange library calls.
 pub fn swap_main(arg0: u32) {
-    log::debug!("swap_main called\n");
-    let cmd = libcall::get_command(arg0);
-
-    match cmd {
+    match libcall::get_command(arg0) {
         libcall::LibCallCommand::SwapCheckAddress => {
-            log::debug!("Received SwapCheckAddress command\n");
-            let mut params = swap::get_check_address_params(arg0);
-            let res = check_address(&params);
-            // Return to Exchange, forwarding the result
-            swap::swap_return(swap::SwapResult::CheckAddressResult(&mut params, res));
+            let mut params: AptosCheckAddressParams = swap::get_check_address_params(arg0);
+            let result = check_address(&params);
+            swap::swap_return(swap::SwapResult::CheckAddressResult(&mut params, result));
         }
         libcall::LibCallCommand::SwapGetPrintableAmount => {
-            log::debug!("Received SwapGetPrintableAmount command\n");
-            let mut params = swap::get_printable_amount_params(arg0);
-            let amount_str = get_printable_amount(&params);
-            // Return to Exchange, forwarding the result
+            let mut params: AptosPrintableAmountParams = swap::get_printable_amount_params(arg0);
+            let amount = get_printable_amount(&params);
             swap::swap_return(swap::SwapResult::PrintableAmountResult(
                 &mut params,
-                amount_str.as_str(),
+                amount.as_str(),
             ));
         }
         libcall::LibCallCommand::SwapSignTransaction => {
-            log::debug!("Received SwapSignTransaction command\n");
-            let mut params = swap::sign_tx_params(arg0);
-            // Call normal_main with Swap parameter set to enter the special Swap flow
-            let success = crate::normal_main(Some(&params));
-            // Return to Exchange, forwarding the result
-            if success {
-                swap::swap_return(swap::SwapResult::CreateTxResult(&mut params, 1));
-            } else {
-                swap::swap_return(swap::SwapResult::CreateTxResult(&mut params, 0));
-            }
+            let mut params: AptosCreateTxParams = swap::sign_tx_params(arg0);
+            let signed = crate::normal_main(Some(&params));
+            swap::swap_return(swap::SwapResult::CreateTxResult(
+                &mut params,
+                u8::from(signed),
+            ));
         }
     }
 }
-// --8<-- [end:swap_main]
 
-// --8<-- [start:check_address]
-/// Verify that a given address belongs to this device.
-///
-/// The Exchange app calls this to ensure the user owns the destination address
-/// before proceeding with the swap. This prevents sending funds to wrong addresses.
-///
-/// # Flow
-///
-/// 1. Parse BIP32 derivation path from params
-/// 2. Derive public key from the path
-/// 3. Compute address from public key (Keccak256 hash)
-/// 4. Compare with reference address from Exchange
-///
-/// # Important Notes
-///
-/// - **No heap allocation**: Uses stack arrays only (BSS memory is shared with Exchange)
-/// - **Hex string comparison**: Exchange sends address as hex string via C API,
-///   so we convert our computed address to hex for comparison
-/// - **Address format**: This app uses Ethereum-style addresses (last 20 bytes of
-///   Keccak256 hash of pubkey). Adapt this for your blockchain's address format.
-///
-/// # Arguments
-///
-/// * `params` - Contains BIP32 path and reference address from Exchange
-///
-/// # Returns
-///
-/// * `1` if addresses match (valid)
-/// * `0` if addresses don't match or error occurred
-fn check_address(params: &CheckAddressParams) -> i32 {
-    // Parse BIP32 derivation path
-    // Note: params.dpath_len is the NUMBER of u32 path components (e.g., 5 for m/44'/1'/0'/0/0),
-    // not the byte length. Each component is 4 bytes (big-endian u32).
-    let path_bytes = &params.dpath[..params.dpath_len * 4];
-
-    // Use stack-allocated array (no heap!) to store parsed path
-    let mut path: [u32; 10] = [0; 10]; // Max 10 derivation levels
-
-    if params.dpath_len > 10 {
-        log::error!("Path too long\n");
+/// Validate a SLIP-10 Aptos path and compare its Ed25519 account address with
+/// the prefixed hexadecimal address approved by Exchange.
+fn check_address(params: &AptosCheckAddressParams) -> i32 {
+    if !(3..=10).contains(&params.dpath_len)
+        || params.dpath_len > params.dpath.len() / 4
+        || params.dpath[..8] != [0x80, 0, 0, 44, 0x80, 0, 2, 125]
+    {
         return 0;
     }
+    let Some(reference) = params
+        .ref_address
+        .get(..params.ref_address_len)
+        .and_then(decode_address)
+    else {
+        return 0;
+    };
 
-    // Convert big-endian bytes to u32 path components
-    for i in 0..params.dpath_len {
-        path[i] = u32::from_be_bytes([
-            path_bytes[i * 4],
-            path_bytes[i * 4 + 1],
-            path_bytes[i * 4 + 2],
-            path_bytes[i * 4 + 3],
-        ]);
-    }
-
-    // Derive public key from path using the same logic as get_public_key handler
-    let (k, _) = Secp256k1::derive_from(&path[..params.dpath_len]);
-    let pubkey = match k.public_key() {
-        Ok(pk) => pk.pubkey,
-        Err(_) => {
-            log::error!("Key derivation failed\n");
+    let mut path = [0u32; 10];
+    for (component, bytes) in path[..params.dpath_len]
+        .iter_mut()
+        .zip(params.dpath[..params.dpath_len * 4].chunks_exact(4))
+    {
+        *component = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+        if *component & 0x8000_0000 == 0 {
             return 0;
         }
-    };
-
-    // Compute address: Keccak256 hash of pubkey (excluding first byte 0x04)
-    let address_hash = get_address_hash_from_pubkey(&pubkey);
-    // Take last 20 bytes as address (Ethereum-style)
-    let address = &address_hash[address_hash.len() - 20..];
-
-    // Exchange sends address bytes, but SDK's read_c_string() interprets them as
-    // a hex string. This is a quirk of the C API - the Exchange sends binary address
-    // bytes, but they're read as ASCII characters.
-    // Example: byte 0x04 becomes ASCII '0' (0x30) and '4' (0x34) = "04" in the string
-    let ref_hex = match core::str::from_utf8(&params.ref_address[..params.ref_address_len]) {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-
-    // Convert our derived address to hex string for comparison
-    // Using ArrayString (stack-allocated) to avoid heap allocation
-    let mut our_hex = ArrayString::<40>::new(); // 20 bytes * 2 hex chars
-    for b in address {
-        let _ = write!(&mut our_hex, "{:02x}", b);
     }
 
-    // Compare hex strings
-    if our_hex.as_str() == ref_hex {
-        log::debug!("Check address successful, derived and received addresses match\n");
-        1 // Success
-    } else {
-        log::debug!("Derived and received addresses do NOT match\n");
-        log::debug!("Derived address: {:x?}", address);
-        log::debug!("Reference (hex): {}", ref_hex);
-        0 // Failure
+    let Ok((public_key, _)) = derive_aptos_public_key(&path[..params.dpath_len]) else {
+        return 0;
+    };
+    match aptos_address_from_pubkey(&public_key) {
+        Ok(derived) if derived == reference => 1,
+        _ => 0,
     }
 }
-// --8<-- [end:check_address]
 
-// --8<-- [start:get_printable_amount]
-/// Format an amount for display in the Exchange app UI.
-///
-/// The Exchange app calls this to get human-readable strings for amounts and fees.
-/// This is used during swap transactions to show the user what amounts they're
-/// exchanging.
-///
-/// # Amount Format
-///
-/// The amount is provided as big-endian bytes in `params.amount`:
-/// - Right-aligned in a 16-byte buffer (AMOUNT_BUF_SIZE)
-/// - Actual length is in `params.amount_len`
-/// - Padded to 32 bytes (uint256) for SDK formatting helpers
-///
-/// # Arguments
-///
-/// * `params` - Contains:
-///   - `amount`: Big-endian encoded amount bytes (right-aligned in 16-byte buffer)
-///   - `amount_len`: Actual number of significant bytes
-///   - `coin_config`: Coin configuration (unused - hardcoded to CRAB in this template)
-///   - `is_fee`: Whether this is a fee amount
-///
-/// # Returns
-///
-/// Stack-allocated string formatted as "CRAB {value}" (e.g., "CRAB 1.5")
-///
-/// # Memory Safety
-///
-/// Uses `ArrayString` (stack-allocated) to avoid heap allocation, as this function
-/// runs under BSS memory restrictions.
-///
-/// # Production Notes
-///
-/// For a production app, you should:
-/// - Parse `coin_config` to extract ticker and decimals dynamically
-/// - Handle different coin types
-/// - Support both u64 and u128 amounts
-fn get_printable_amount(params: &PrintableAmountParams) -> ArrayString<40> {
-    // Convert amount from 16-byte buffer to 32-byte buffer (uint256 format)
-    // The amount is right-aligned in params.amount, we need to copy it to a
-    // 32-byte buffer that's also right-aligned (big-endian)
-    let mut amount_u256: [u8; 32] = [0; 32];
-    let src_start = params.amount.len() - params.amount_len;
-    let dst_start = 32 - params.amount_len;
-    amount_u256[dst_start..].copy_from_slice(&params.amount[src_start..]);
-
-    log::debug!("Amount bytes (u256): ");
-    debug_hex("", &amount_u256);
-
-    // CRAB uses 9 decimals (similar to SUI, which also uses 9 decimals)
-    // For production: parse decimals from params.coin_config
-    const CRAB_DECIMALS: usize = 9;
-    const CRAB_TICKER: &str = "CRAB";
-
-    // Use SDK helper to format amount with decimals
-    let amount_str = uint256_to_float(&amount_u256, CRAB_DECIMALS);
-
-    // Format as "CRAB {value}" using stack-allocated ArrayString
-    let mut printable = ArrayString::<40>::new();
-    let _ = write!(&mut printable, "{} {}", CRAB_TICKER, amount_str.as_str());
-
-    log::debug!("Formatted amount: {}", printable.as_str());
-
+/// Format an Exchange amount using the approved coin configuration.
+fn get_printable_amount(params: &AptosPrintableAmountParams) -> ArrayString<64> {
+    let mut printable = ArrayString::<64>::new();
+    let Some(config) = params.coin_config.get(..params.coin_config_len) else {
+        return printable;
+    };
+    let (ticker, decimals) = if params.is_fee || config.is_empty() {
+        ("APT", 8)
+    } else {
+        match coin_config(config) {
+            Some(token) => token,
+            None => return printable,
+        }
+    };
+    let Some(amount) = exchange_amount(&params.amount, params.amount_len) else {
+        return printable;
+    };
+    let mut amount_u256 = [0u8; 32];
+    amount_u256[24..].copy_from_slice(&amount.to_be_bytes());
+    let formatted = uint256_to_float(&amount_u256, decimals as usize);
+    if formatted.as_str().is_empty() {
+        return printable;
+    }
+    if write!(&mut printable, "{} {}", formatted.as_str(), ticker).is_err() {
+        printable.clear();
+    }
     printable
 }
-// --8<-- [end:get_printable_amount]

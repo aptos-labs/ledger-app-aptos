@@ -1,5 +1,5 @@
 /*****************************************************************************
- *   Ledger App Boilerplate Rust.
+ *   Ledger App Aptos.
  *   (c) 2023 Ledger SAS.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +24,7 @@ pub fn handler_get_version(command: Command<'_>) -> Result<CommandResponse<'_>, 
         response.append(&[major, minor, patch])?;
         Ok(response)
     } else {
-        Err(AppSW::VersionParsingFail)
+        Err(AppSW::WrongResponseLength)
     }
 }
 

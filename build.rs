@@ -34,12 +34,12 @@ fn gif_to_luma(path: &std::path::Path) -> (u32, u32, Vec<u8>) {
 
 fn main() {
     println!("cargo:rerun-if-changed=script.ld");
-    println!("cargo:rerun-if-changed=icons/crab_14x14.gif");
-    println!("cargo:rerun-if-changed=icons/mask_14x14.gif");
+    println!("cargo:rerun-if-changed=icons/app_aptos_14px.gif");
+    println!("cargo:rerun-if-changed=icons/mask_aptos_14px.gif");
 
     let icons = PathBuf::from("icons");
-    let (width, height, mut gray) = gif_to_luma(&icons.join("crab_14x14.gif"));
-    let (mask_w, mask_h, mask) = gif_to_luma(&icons.join("mask_14x14.gif"));
+    let (width, height, mut gray) = gif_to_luma(&icons.join("app_aptos_14px.gif"));
+    let (mask_w, mask_h, mask) = gif_to_luma(&icons.join("mask_aptos_14px.gif"));
     assert_eq!(
         (width, height),
         (mask_w, mask_h),
