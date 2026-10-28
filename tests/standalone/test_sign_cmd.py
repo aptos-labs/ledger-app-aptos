@@ -5,7 +5,7 @@ import hashlib
 import pytest
 from application_client.aptos_command_sender import AptosCommandSender
 from application_client.aptos_pubkey import AptosPubkeyClient, unpack_public_key
-from application_client.boilerplate_command_sender import Errors
+from application_client.boilerplate_command_sender import MAX_APDU_LEN, Errors
 from nacl.exceptions import BadSignatureError
 from nacl.signing import VerifyKey
 from ragger.error import ExceptionRAPDU
@@ -23,9 +23,106 @@ RAW_TRANSACTION_BODY = bytes.fromhex(
     "0a6170746f735f636f696e094170746f73436f696e000743417434fd869edee76cca2a4d2301e528a1551b1d719b75c350c3c97d15b8b905636f696e7304555344540007190d44266241744264b964a37b8f09863167a12d3e70cda39376cfb4e3561e12066375727665730c556e636f7272656c6174656400020800e1f5050000000008decbb30000000000480000000000000064000000000000008a9ba4640000000002"
 )
 TRANSACTION = RAW_TRANSACTION_PREFIX + RAW_TRANSACTION_BODY
-# A RawTransactionWithData-shaped fixture: the recognized prefix, one variant
-# byte, and the RawTransaction fixture body.
-TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + RAW_TRANSACTION_BODY
+# A RawTransactionWithData::MultiAgent fixture: the recognized prefix, the
+# variant, the RawTransaction fixture body and one secondary signer.
+TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + RAW_TRANSACTION_BODY + b"\x01" + b"\x55" * 32
+
+# v1's short transaction: a coin::transfer. Until the known-function table is
+# ported (#24) every entry function is blind-signed with its qualified name.
+SHORT_TRANSACTION = bytes.fromhex(
+    "b5e97db07fa0bd0e5598aa3643a9bc6f6693bddc1a9fec9e674a461eaa00b193783135e8b00430253a22ba041d860c373d7a1501ccf7ac2d1ad37a8ed2775aee"
+    "000000000000000002000000000000000000000000000000000000000000000000000000000000000104636f696e087472616e73666572010700000000000000000000000000000000000000000000000000000000000000010a6170746f735f636f696e094170746f73436f696e000220094c6fc0d3b382a599c37e1aaa7618eff2c96a3586876082c4594c50c50d7dde082a00000000000000204e0000000000006400000000000000565c51630000000022"
+)
+
+
+def _uleb(value):
+    out = bytearray()
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        if value:
+            out.append(byte | 0x80)
+        else:
+            out.append(byte)
+            return bytes(out)
+
+
+def _bcs_bytes(data):
+    return _uleb(len(data)) + data
+
+
+def _footer(max_gas=72, gas_unit_price=100):
+    return max_gas.to_bytes(8, "little") + gas_unit_price.to_bytes(8, "little") + (1_700_000_000).to_bytes(8, "little") + b"\x02"
+
+
+SENDER = bytes.fromhex("094c6fc0d3b382a599c37e1aaa7618eff2c96a3586876082c4594c50c50d7dde")
+
+
+def _raw_body(payload, footer=None):
+    return SENDER + (7).to_bytes(8, "little") + payload + (footer or _footer())
+
+
+def _entry_function_body(module, function, address=b"\x00" * 31 + b"\x01"):
+    return address + _bcs_bytes(module) + _bcs_bytes(function) + b"\x00" + b"\x00"
+
+
+def _entry_function(module, function, address=b"\x00" * 31 + b"\x01"):
+    return b"\x02" + _entry_function_body(module, function, address)
+
+
+def _multisig(inner_payload):
+    return b"\x03" + b"\x22" * 32 + inner_payload
+
+
+# Type arguments at every shape the decoder must walk: eight nested vectors
+# (aptos-core's nesting limit), a generic struct over i64, and a function type.
+SCRIPT_TYPE_ARGS = (
+    b"\x03"
+    + b"\x06" * 8
+    + b"\x01"
+    + b"\x07"
+    + b"\x00" * 31
+    + b"\x01"
+    + _bcs_bytes(b"coin")
+    + _bcs_bytes(b"Coin")
+    + b"\x01\x0f"
+    + b"\x0b"
+    + b"\x01\x00\x01"
+    + b"\x00"
+    + b"\x02"
+)
+SCRIPT_BODY = (
+    _bcs_bytes(b"\xa1\x1c")
+    + SCRIPT_TYPE_ARGS
+    + b"\x04"
+    + b"\x00\x05"
+    + b"\x0d"
+    + (-1).to_bytes(8, "little", signed=True)
+    + b"\x04\x01\xff"
+    + b"\x0f"
+    + (-(2**255)).to_bytes(32, "little", signed=True)
+)
+SCRIPT_PAYLOAD = b"\x00" + SCRIPT_BODY
+MULTISIG_PAYLOAD = _multisig(b"\x00")
+SCRIPT_TRANSACTION = RAW_TRANSACTION_PREFIX + _raw_body(SCRIPT_PAYLOAD)
+MULTISIG_TRANSACTION = RAW_TRANSACTION_PREFIX + _raw_body(MULTISIG_PAYLOAD)
+MULTISIG_INNER_PAYLOADS = {
+    "stored_on_chain": b"\x00",
+    "entry_function": b"\x01\x00" + _entry_function_body(b"coin", b"transfer"),
+    "script": b"\x01\x01" + SCRIPT_BODY,
+}
+FEE_PAYER_TRANSACTION = (
+    RAW_TRANSACTION_WITH_DATA_PREFIX
+    + b"\x01"
+    + _raw_body(_entry_function(b"coin", b"transfer"))
+    + b"\x01"
+    + b"\x33" * 32
+    + b"\x44" * 32
+)
+# Maximum-length identifiers build the longest function name a review can show.
+LONGEST_FUNCTION_TRANSACTION = RAW_TRANSACTION_PREFIX + _raw_body(
+    _entry_function(b"m" * 255, b"f" * 255, address=bytes.fromhex("ab" * 32))
+)
 
 SHORT_MESSAGE = b"Hello Ledger!"
 SHORT_RAW_MESSAGE = bytes.fromhex("01020304ff")
@@ -34,6 +131,64 @@ LONG_RAW_MESSAGE = bytes(range(256)) * 3
 EMBEDDED_NUL_MESSAGE = b"Hello\x00Ledger"
 MALFORMED_TRANSACTION = RAW_TRANSACTION_PREFIX + b"\x00"
 MALFORMED_TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00"
+MALFORMED_TRANSACTIONS = [
+    MALFORMED_TRANSACTION,
+    MALFORMED_TRANSACTION_WITH_DATA,
+    # Trailing bytes after a complete transaction.
+    SCRIPT_TRANSACTION + b"\x00",
+    MULTISIG_TRANSACTION + b"\x00",
+    FEE_PAYER_TRANSACTION + b"\x00",
+    # Truncated before the chain id.
+    SCRIPT_TRANSACTION[:-1],
+    # Fee-payer transaction truncated before the fee payer address.
+    FEE_PAYER_TRANSACTION[:-32],
+    # Module name length written with a redundant ULEB128 byte.
+    RAW_TRANSACTION_PREFIX
+    + _raw_body(b"\x02" + b"\x00" * 31 + b"\x01" + b"\x84\x00" + b"coin" + _bcs_bytes(b"transfer") + b"\x00\x00"),
+    # Module name length above u32::MAX.
+    RAW_TRANSACTION_PREFIX
+    + _raw_body(b"\x02" + b"\x00" * 31 + b"\x01" + b"\xff\xff\xff\xff\x7f" + b"coin" + _bcs_bytes(b"transfer") + b"\x00\x00"),
+    # Identifiers may only hold ASCII letters, digits, underscores and dollars.
+    RAW_TRANSACTION_PREFIX + _raw_body(_entry_function(b"co in", b"transfer")),
+    # Identifiers are never empty.
+    RAW_TRANSACTION_PREFIX + _raw_body(_entry_function(b"coin", b"")),
+    # Identifiers are at most 255 bytes.
+    RAW_TRANSACTION_PREFIX + _raw_body(_entry_function(b"coin", b"f" * 256)),
+    # Unknown type tag.
+    RAW_TRANSACTION_PREFIX
+    + _raw_body(b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01\x12\x00"),
+    # Type arguments nested deeper than aptos-core deserializes.
+    RAW_TRANSACTION_PREFIX
+    + _raw_body(
+        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01" + b"\x06" * 9 + b"\x01\x00"
+    ),
+    # Function type parameter that is neither a value nor a reference.
+    RAW_TRANSACTION_PREFIX
+    + _raw_body(
+        b"\x02" + b"\x00" * 31 + b"\x01" + _bcs_bytes(b"coin") + _bcs_bytes(b"transfer") + b"\x01\x0b\x01\x03\x01\x00\x02\x00"
+    ),
+    # Unknown script argument variant.
+    RAW_TRANSACTION_PREFIX + _raw_body(b"\x00" + _bcs_bytes(b"\xa1\x1c") + b"\x00" + b"\x01" + b"\x10\x00"),
+    # Script argument truncated: a U64 with only two of its eight bytes.
+    RAW_TRANSACTION_PREFIX
+    + SENDER
+    + (7).to_bytes(8, "little")
+    + b"\x00"
+    + _bcs_bytes(b"\xa1\x1c")
+    + b"\x00"
+    + b"\x01"
+    + b"\x01\x00\x00",
+    # ModuleBundle payloads are not supported.
+    RAW_TRANSACTION_PREFIX + _raw_body(b"\x01"),
+    # Multisig payload option tag other than 0 or 1.
+    RAW_TRANSACTION_PREFIX + _raw_body(_multisig(b"\x02")),
+    # Unknown multisig payload variant.
+    RAW_TRANSACTION_PREFIX + _raw_body(_multisig(b"\x01\x02" + _entry_function_body(b"coin", b"transfer"))),
+    # Unknown RawTransactionWithData variant.
+    RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x02" + _raw_body(SCRIPT_PAYLOAD) + b"\x00",
+    # Multi-agent transaction missing its secondary signer list.
+    RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00" + _raw_body(SCRIPT_PAYLOAD),
+]
 
 
 def _review_message(firmware, navigator, test_name, default_screenshot_path):
@@ -302,6 +457,72 @@ def test_blind_sign_tx_with_data(backend, firmware, navigator, test_name, defaul
     )
 
 
+def test_sign_tx_short_tx(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        SHORT_TRANSACTION,
+        _review_blind_transaction,
+    )
+
+
+def test_blind_sign_tx_script(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        SCRIPT_TRANSACTION,
+        _review_blind_transaction,
+    )
+
+
+@pytest.mark.parametrize("inner_payload", MULTISIG_INNER_PAYLOADS.keys())
+def test_blind_sign_tx_multisig(
+    backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing, inner_payload
+):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        f"{test_name}_{inner_payload}",
+        default_screenshot_path,
+        RAW_TRANSACTION_PREFIX + _raw_body(_multisig(MULTISIG_INNER_PAYLOADS[inner_payload])),
+        _review_blind_transaction,
+    )
+
+
+def test_blind_sign_tx_fee_payer(backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing):
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        FEE_PAYER_TRANSACTION,
+        _review_blind_transaction,
+    )
+
+
+def test_blind_sign_tx_longest_function_name(
+    backend, firmware, navigator, test_name, default_screenshot_path, disable_blind_signing
+):
+    assert len(LONGEST_FUNCTION_TRANSACTION) > 255
+    _sign_and_verify(
+        backend,
+        firmware,
+        navigator,
+        test_name,
+        default_screenshot_path,
+        LONGEST_FUNCTION_TRANSACTION,
+        _review_blind_transaction,
+    )
+
+
 def test_sign_tx_refused(backend, firmware, navigator, test_name, default_screenshot_path):
     client = AptosCommandSender(backend)
     if firmware.device.startswith("nano"):
@@ -429,18 +650,32 @@ def test_sign_tx_max_device_payload_and_packet_limit(
 
 @pytest.mark.parametrize(
     "payload",
-    [MALFORMED_TRANSACTION, MALFORMED_TRANSACTION_WITH_DATA],
+    MALFORMED_TRANSACTIONS,
 )
 def test_sign_tx_malformed_transaction_returns_parsing_error(backend, payload):
     client = AptosCommandSender(backend)
     client.start_signing(PATH)
+    chunks = [payload[i : i + MAX_APDU_LEN] for i in range(0, len(payload), MAX_APDU_LEN)]
+    for index, chunk in enumerate(chunks[:-1], start=1):
+        assert client.send_chunk(index, True, chunk).status == Errors.SW_OK
     with pytest.raises(ExceptionRAPDU) as error:
-        client.send_chunk(1, False, payload)
+        client.send_chunk(len(chunks), False, chunks[-1])
     assert error.value.status == Errors.SW_TX_PARSING_FAIL
     assert error.value.data == b""
     with pytest.raises(ExceptionRAPDU) as error:
         client.send_chunk(1, True, b"retry")
     assert error.value.status == Errors.SW_BAD_STATE
+    assert error.value.data == b""
+
+
+def test_sign_tx_gas_fee_overflow_is_rejected(backend):
+    # 2**63 * 2 does not fit in 64 bits.
+    payload = RAW_TRANSACTION_PREFIX + _raw_body(SCRIPT_PAYLOAD, _footer(max_gas=2**63, gas_unit_price=2))
+    client = AptosCommandSender(backend)
+    client.start_signing(PATH)
+    with pytest.raises(ExceptionRAPDU) as error:
+        client.send_chunk(1, False, payload)
+    assert error.value.status == Errors.SW_DISPLAY_GAS_FEE_FAIL
     assert error.value.data == b""
 
 

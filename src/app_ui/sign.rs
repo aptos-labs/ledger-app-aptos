@@ -15,8 +15,13 @@
  *  limitations under the License.
  *****************************************************************************/
 use alloc::borrow::Cow;
+use alloc::format;
+use alloc::string::String;
+use alloc::vec::Vec;
 
+use crate::bcs::ADDRESS_LEN;
 use crate::handlers::sign_tx::SigningPayload;
+use crate::transaction::{EntryFunction, Envelope, Payload, Transaction, OCTAS_PER_APT};
 use crate::AppSW;
 
 use core::str;
@@ -148,18 +153,89 @@ fn ui_display_message_stream(
     Ok(review.finish(comm, "Sign message?"))
 }
 
-/// Review a transaction payload without decoding it.
+/// Title for the transaction type field, following v1's wording.
+fn transaction_type(transaction: &Transaction) -> &'static str {
+    match (transaction.envelope, &transaction.payload) {
+        (Envelope::WithData, _) => "APTOS::RawTransactionWithData",
+        (Envelope::Raw, Payload::EntryFunction(_)) => "Function call",
+        (Envelope::Raw, Payload::Script) => "APTOS::RawTransaction [payload = SCRIPT]",
+        (Envelope::Raw, Payload::Multisig) => "APTOS::RawTransaction [payload = MULTISIG]",
+    }
+}
+
+/// Longest function name the review shows. v1 formats the name into a
+/// 120-byte buffer, and Nano X's 2 KiB heap cannot hold a full-length
+/// `0x<address>::<module>::<function>` twice (once here, once in the SDK's C
+/// copy), so longer names are cut the way v1 cuts them.
+const MAX_FUNCTION_NAME_LEN: usize = 119;
+
+/// Format an entry function as `0x<address>::<module>::<function>`, with
+/// leading zero bytes of the address dropped but at least one byte kept.
+///
+/// Kept out of line so its scratch buffers never sit in the review's frame:
+/// Nano X's stack protector trips when that frame grows.
 #[inline(never)]
-fn ui_display_transaction(comm: &mut Comm, payload: &SigningPayload) -> Result<bool, AppSW> {
-    let field_value = match payload {
-        SigningPayload::RawTransaction => "RawTransaction",
-        SigningPayload::RawTransactionWithData => "RawTransactionWithData",
-        _ => return Err(AppSW::TxParsingFail),
+fn function_name(function: &EntryFunction) -> String {
+    let address = function.module_address;
+    let first = address
+        .iter()
+        .position(|&byte| byte != 0)
+        .unwrap_or(address.len() - 1);
+    let mut hex = [0u8; 2 * ADDRESS_LEN];
+    let hex = &mut hex[..2 * (ADDRESS_LEN - first)];
+    // The output is exactly twice the input, so encoding cannot fail.
+    let _ = hex::encode_to_slice(&address[first..], hex);
+    hex.make_ascii_uppercase();
+
+    let mut name = String::with_capacity(MAX_FUNCTION_NAME_LEN);
+    // Every part is ASCII, so cutting at a byte never splits a character.
+    for part in [
+        "0x",
+        str::from_utf8(hex).unwrap_or_default(),
+        "::",
+        function.module,
+        "::",
+        function.function,
+    ] {
+        let room = MAX_FUNCTION_NAME_LEN - name.len();
+        name.push_str(&part[..part.len().min(room)]);
+    }
+    name
+}
+
+/// Format octas as APT with eight decimals.
+fn gas_fee(octas: u64) -> String {
+    format!("APT {}.{:08}", octas / OCTAS_PER_APT, octas % OCTAS_PER_APT)
+}
+
+/// Review a transaction: its type, the function it calls and the gas fee.
+///
+/// Everything shown comes from the strictly parsed bytes. Transactions are
+/// blind-signed because they are not yet clear-signed.
+#[inline(never)]
+fn ui_display_transaction(comm: &mut Comm, bytes: &[u8]) -> Result<bool, AppSW> {
+    let transaction = Transaction::parse(bytes).ok_or(AppSW::TxParsingFail)??;
+    let function = match &transaction.payload {
+        Payload::EntryFunction(function) => Some(function_name(function)),
+        _ => None,
     };
-    let fields = [Field {
+    let fee = gas_fee(transaction.gas_fee);
+
+    let mut fields = Vec::with_capacity(3);
+    fields.push(Field {
         name: "Transaction type",
-        value: field_value,
-    }];
+        value: transaction_type(&transaction),
+    });
+    if let Some(function) = &function {
+        fields.push(Field {
+            name: "Function",
+            value: function,
+        });
+    }
+    fields.push(Field {
+        name: "Gas fee",
+        value: &fee,
+    });
 
     Ok(NbglReview::new()
         .titles("Review transaction", "", "Sign transaction?")
@@ -183,6 +259,6 @@ pub fn ui_display_sign_payload(
             ui_display_message_direct(comm, payload, message)
         }
     } else {
-        ui_display_transaction(comm, payload)
+        ui_display_transaction(comm, message)
     }
 }
