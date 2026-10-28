@@ -36,39 +36,31 @@ MALFORMED_TRANSACTION_WITH_DATA = RAW_TRANSACTION_WITH_DATA_PREFIX + b"\x00"
 
 def _review_blind(firmware, navigator, test_name, default_screenshot_path):
     if firmware.device.startswith("nano"):
-        navigator.navigate_and_compare(
-            default_screenshot_path,
-            f"{test_name}/part0",
-            [
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-                NavInsID.RIGHT_CLICK,
-                NavInsID.BOTH_CLICK,
-            ],
-        )
-        navigator.navigate_until_text_and_compare(
+        instructions = [
             NavInsID.RIGHT_CLICK,
-            [NavInsID.BOTH_CLICK, NavInsID.BOTH_CLICK],
-            "Sign",
-            default_screenshot_path,
-            f"{test_name}/part0",
-            screen_change_before_first_instruction=False,
-            snap_start_idx=4,
-        )
+            NavInsID.BOTH_CLICK,
+            NavInsID.RIGHT_CLICK,
+            NavInsID.BOTH_CLICK,
+            NavInsID.RIGHT_CLICK,
+            NavInsID.RIGHT_CLICK,
+            NavInsID.BOTH_CLICK,
+            NavInsID.BOTH_CLICK,
+        ]
     else:
-        navigator.navigate_and_compare(
-            default_screenshot_path,
-            f"{test_name}/part0",
-            [
-                NavInsID.USE_CASE_CHOICE_CONFIRM,
-                NavInsID.USE_CASE_STATUS_DISMISS,
-                NavInsID.USE_CASE_CHOICE_REJECT,
-                NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
-                NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
-                NavInsID.USE_CASE_REVIEW_CONFIRM,
-                NavInsID.USE_CASE_STATUS_DISMISS,
-            ],
-        )
+        instructions = [
+            NavInsID.USE_CASE_CHOICE_CONFIRM,
+            NavInsID.USE_CASE_STATUS_DISMISS,
+            NavInsID.USE_CASE_CHOICE_REJECT,
+            NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
+            NavInsID.USE_CASE_VIEW_DETAILS_NEXT,
+            NavInsID.USE_CASE_REVIEW_CONFIRM,
+            NavInsID.USE_CASE_STATUS_DISMISS,
+        ]
+    navigator.navigate_and_compare(
+        default_screenshot_path,
+        f"{test_name}/part0",
+        instructions,
+    )
 
 
 @pytest.fixture
